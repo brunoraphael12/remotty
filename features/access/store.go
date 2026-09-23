@@ -23,9 +23,12 @@ import (
 const (
 	codeTTL     = 5 * time.Minute
 	maxAttempts = 5
-	// ponytail: fixed lifetime from pairing. Sliding expiry would need the server
-	// to rewrite devices.json on every request; add it if re-pairing monthly annoys.
+	// A device expires after this long WITHOUT use. Every use pushes the expiry
+	// forward, so a tablet in regular use stays paired indefinitely.
 	deviceTTL = 30 * 24 * time.Hour
+	// Renewal rewrites devices.json at most once per this interval, not on
+	// every request (30 tabs poll every 2 s).
+	renewEvery = 24 * time.Hour
 )
 
 // ErrInvalidCode covers wrong, expired, used and exhausted codes alike, so a
@@ -151,10 +154,35 @@ func (s Store) Lookup(token string) (Device, bool) {
 	want := hash(token)
 	for _, d := range devices {
 		if d.TokenHash == want && s.now().Before(d.Expires) {
-			return d, true
+			return s.renew(d), true
 		}
 	}
 	return Device{}, false
+}
+
+// renew slides a device's expiry forward from now. It writes only once a day
+// and treats a failed write as harmless: the device stays valid until its
+// current expiry either way.
+func (s Store) renew(d Device) Device {
+	target := s.now().Add(deviceTTL)
+	if target.Sub(d.Expires) < renewEvery {
+		return d
+	}
+	s.locked(func() error {
+		devices, err := s.readDevices()
+		if err != nil {
+			return err
+		}
+		for i := range devices {
+			if devices[i].ID == d.ID { // re-read under the lock: it may have been revoked meanwhile
+				devices[i].Expires = target
+				d.Expires = target
+				return writeJSON(s.path("devices.json"), devices)
+			}
+		}
+		return nil
+	})
+	return d
 }
 
 // Active reports whether a device is still paired and unexpired.

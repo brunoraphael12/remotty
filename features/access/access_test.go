@@ -279,3 +279,58 @@ func TestUpgradeTokenListStillNeedsOrigin(t *testing.T) {
 		}
 	}
 }
+
+// A device in regular use must never expire: the owner may be away for a year.
+// Only a device left unused for a whole deviceTTL does.
+func TestUsedDeviceStaysPairedAndIdleDeviceExpires(t *testing.T) {
+	s, c := newStore(t)
+	code, _ := s.NewCode()
+	token, _, _ := s.Redeem(code, "tablet")
+	for day := 0; day < 365; day += 7 { // used once a week, for a year
+		c.t = c.t.Add(7 * 24 * time.Hour)
+		if _, ok := s.Lookup(token); !ok {
+			t.Fatalf("device used weekly expired after %d days", day+7)
+		}
+	}
+	c.t = c.t.Add(deviceTTL + time.Hour) // then nobody touches it
+	if _, ok := s.Lookup(token); ok {
+		t.Fatal("device idle for longer than deviceTTL still authenticates")
+	}
+}
+
+// Renewal must not rewrite the store on every request: 30 tabs polling every
+// 2 s would otherwise hammer the disk and the lock.
+func TestRenewalWritesAtMostOncePerDay(t *testing.T) {
+	s, c := newStore(t)
+	code, _ := s.NewCode()
+	token, _, _ := s.Redeem(code, "tablet")
+	path := filepath.Join(s.Dir, "devices.json")
+	stat := func() time.Time { i, _ := os.Stat(path); return i.ModTime() }
+
+	c.t = c.t.Add(25 * time.Hour)
+	s.Lookup(token)
+	renewed := stat()
+	time.Sleep(20 * time.Millisecond) // mtime resolution
+	for i := 0; i < 100; i++ {
+		c.t = c.t.Add(time.Minute)
+		s.Lookup(token)
+	}
+	if !stat().Equal(renewed) {
+		t.Fatal("devices.json rewritten on requests within the same day")
+	}
+}
+
+// Renewal re-reads the store under the lock, so a device revoked between the
+// token check and the renewal write must stay revoked.
+func TestRenewalNeverResurrectsARevokedDevice(t *testing.T) {
+	s, c := newStore(t)
+	code, _ := s.NewCode()
+	token, dev, _ := s.Redeem(code, "tablet")
+	c.t = c.t.Add(2 * renewEvery)
+	stale, _ := s.readDevices() // what Lookup saw before the revoke
+	s.Revoke(dev.ID)
+	s.renew(stale[0])
+	if _, ok := s.Lookup(token); ok || s.Active(dev.ID) {
+		t.Fatal("renewal brought a revoked device back")
+	}
+}

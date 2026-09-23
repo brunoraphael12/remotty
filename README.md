@@ -46,6 +46,9 @@ remotty pair
 Type the code on the device, or open the link and it pairs by itself. The code
 travels in the URL fragment, which browsers never send to a server.
 
+A paired device stays paired as long as you use it: each use pushes its expiry
+30 days ahead. Only a device left unused for 30 days has to pair again.
+
 ```sh
 remotty devices     # what is paired
 remotty revoke ID   # unpair; its open terminals close within a second
