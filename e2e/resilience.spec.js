@@ -50,6 +50,23 @@ test('a socket to a window that no longer exists never types into another window
   await expect.poll(() => host.capture(live.id)).toContain('MARCA-VIVA');
 });
 
+// Over a real network the WebSocket takes a while to open. Whatever the user
+// types in that window must still reach the shell, in order.
+test('keys typed before the terminal connects are not lost', async ({ page, host }) => {
+  await pair(page, host);
+  // Hold back every new terminal socket for 800 ms, like a slow tailnet handshake.
+  await page.routeWebSocket(/\/tty$/, async (ws) => {
+    await new Promise((ok) => setTimeout(ok, 800));
+    ws.connectToServer();
+  });
+  page.once('dialog', (d) => d.accept('lento'));
+  await page.getByRole('button', { name: 'New agent' }).click();
+  await typeInTerminal(page, 'echo primeira-$((1+1)); echo segunda-$((2+2))\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('segunda-4');
+  const lento = host.windows().find((w) => w.name === 'lento');
+  expect(host.capture(lento.id)).toMatch(/primeira-2[\s\S]*segunda-4/);
+});
+
 test('a device revoked while the host is down is refused when it comes back', async ({ page, host }) => {
   await pair(page, host, 'viajante');
   const port = new URL(host.origin).port;

@@ -23,15 +23,22 @@ export function createTerminal({ onStatus }) {
   let windowId = null;
   let failures = 0;
   let ctrlArmed = false;
+  // Keys typed while the socket is still connecting (a slow tailnet handshake,
+  // a reconnect) wait here and go out in order once it opens.
+  let pending = [];
   const encoder = new TextEncoder();
 
   function send(text) {
-    if (socket?.readyState !== WebSocket.OPEN) return;
     if (ctrlArmed && text.length === 1) {
       text = ctrlOf(text);
       setCtrl(false);
     }
-    socket.send(encoder.encode(text));
+    sendBytes(encoder.encode(text));
+  }
+
+  function sendBytes(bytes) {
+    if (socket?.readyState === WebSocket.OPEN) socket.send(bytes);
+    else if (socket) pending.push(bytes);
   }
 
   function sendResize() {
@@ -42,6 +49,7 @@ export function createTerminal({ onStatus }) {
 
   function connect(id) {
     socket?.close();
+    if (id !== windowId) pending = []; // keys typed for another window stay there
     windowId = id;
     term.reset();
     if (!id) return;
@@ -52,6 +60,8 @@ export function createTerminal({ onStatus }) {
       onStatus('');
       fit.fit();
       sendResize();
+      pending.forEach((bytes) => ws.send(bytes));
+      pending = [];
       term.focus();
     };
     ws.onmessage = (e) => term.write(new Uint8Array(e.data));
@@ -70,7 +80,7 @@ export function createTerminal({ onStatus }) {
   }
 
   term.onData(send);
-  term.onBinary((data) => socket?.readyState === WebSocket.OPEN && socket.send(Uint8Array.from(data, (c) => c.charCodeAt(0))));
+  term.onBinary((data) => sendBytes(Uint8Array.from(data, (c) => c.charCodeAt(0))));
   term.onResize(sendResize);
   new ResizeObserver(() => fit.fit()).observe(document.getElementById('stage'));
 
