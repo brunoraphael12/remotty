@@ -43,6 +43,15 @@ test('key bar sends Ctrl+C to interrupt a running command', async ({ page, host 
   expect(host.capture(host.windows()[0].id)).not.toContain('nao-2-devia');
 });
 
+test('key bar Enter runs the typed command', async ({ page, host }) => {
+  await pair(page, host);
+  // No "\n": only the button can submit the line, and only execution turns $((3*5)) into 15.
+  await typeInTerminal(page, 'echo enter-$((3*5))');
+  await page.getByRole('button', { name: 'Enter' }).click();
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('enter-15');
+  expect(host.capture(host.windows()[0].id)).toContain('enter-15');
+});
+
 test('Ctrl toggle turns the next key into a control character', async ({ page, host }) => {
   await pair(page, host);
   await typeInTerminal(page, 'echo linha-que-some');

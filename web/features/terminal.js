@@ -80,7 +80,7 @@ export function createTerminal({ onStatus }) {
 }
 
 const KEYS = {
-  esc: '\x1b', tab: '\t', 'ctrl-c': '\x03',
+  esc: '\x1b', tab: '\t', enter: '\r', 'ctrl-c': '\x03',
   up: '\x1b[A', down: '\x1b[B', right: '\x1b[C', left: '\x1b[D',
 };
 
