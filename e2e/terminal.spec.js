@@ -82,3 +82,27 @@ test('tmux gets the size the browser measured, and follows it on resize', async 
   const second = sizes.at(-1);
   await expect.poll(clientSize).toBe(`${second.cols}x${second.rows}`);
 });
+
+// tmux keeps the scrollback, not xterm: the tablet has to reach it by touch.
+test('dragging a finger down scrolls back into the tmux history', async ({ page, host }) => {
+  host.tmux('set-option', '-g', 'mouse', 'on'); // tmux's own default is off; most users turn it on
+  await pair(page, host);
+  await typeInTerminal(page, 'for i in $(seq 1 200); do echo linha-$i; done\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('linha-200');
+  const box = await page.locator('#terminal').boundingBox();
+  const x = box.x + box.width / 2;
+  const drag = async (fromY, toY) => {
+    const client = await page.context().newCDPSession(page);
+    const point = (y) => [{ x, y }];
+    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(fromY) });
+    for (let i = 1; i <= 10; i++) {
+      await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: point(fromY + ((toY - fromY) * i) / 10) });
+    }
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  const topLine = async () => Number((await page.locator('#terminal .xterm-rows').textContent()).match(/linha-(\d+)/)[1]);
+  const before = await topLine();
+  await drag(box.y + 60, box.y + box.height - 60); // finger moves down = look further up
+  await expect.poll(topLine).toBeLessThan(before - 10);
+  expect(host.tmux('display-message', '-p', '-t', host.windows()[0].id, '#{pane_in_mode}').trim()).toBe('1');
+});

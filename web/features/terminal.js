@@ -85,6 +85,7 @@ export function createTerminal({ onStatus }) {
   new ResizeObserver(() => fit.fit()).observe(document.getElementById('stage'));
 
   wireKeyBar({ send, toggleCtrl: () => setCtrl(!ctrlArmed), focus: () => term.focus(), onStatus });
+  wireTouchScroll(document.getElementById('terminal'), term);
 
   return { connect, get windowId() { return windowId; } };
 }
@@ -113,6 +114,34 @@ function wireKeyBar({ send, toggleCtrl, focus, onStatus }) {
     }
     focus();
   });
+}
+
+// The history lives in tmux, not in xterm, so a finger drag has to become the
+// mouse wheel that tmux understands. xterm turns wheel events into the mouse
+// sequences tmux enters copy mode on, so we synthesise wheel events: one per
+// line of travel. Needs `set -g mouse on` in tmux, like wheel scrolling anywhere.
+const LINE_PX = 18;
+
+function wireTouchScroll(el, term) {
+  let lastY = null;
+  el.addEventListener('touchstart', (e) => {
+    lastY = e.touches.length === 1 ? e.touches[0].clientY : null;
+  }, { passive: true });
+  el.addEventListener('touchmove', (e) => {
+    if (lastY === null || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    const lines = Math.trunc((y - lastY) / LINE_PX);
+    if (!lines) return;
+    lastY += lines * LINE_PX;
+    const target = term.element.querySelector('.xterm-screen');
+    const at = { clientX: e.touches[0].clientX, clientY: y, bubbles: true, cancelable: true };
+    for (let i = 0; i < Math.abs(lines); i++) {
+      // Finger down = content down = look back in history = wheel up.
+      target.dispatchEvent(new WheelEvent('wheel', { ...at, deltaY: lines > 0 ? -LINE_PX : LINE_PX, deltaMode: 0 }));
+    }
+    e.preventDefault(); // keep the page from bouncing instead
+  }, { passive: false });
+  el.addEventListener('touchend', () => { lastY = null; });
 }
 
 // Ctrl+letter is the letter's code minus 64: Ctrl+C = 0x03.

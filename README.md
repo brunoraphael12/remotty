@@ -60,6 +60,8 @@ remotty revoke ID   # unpair; its open terminals close within a second
   bell, amber means the window has been silent for a while (an agent waiting on
   you, if you set `monitor-silence` in tmux), blue is fresh output.
 - `+` opens a window. Double-tap a tab to rename it; `×` closes it.
+- Drag a finger down on the terminal to scroll back through its history (tmux
+  copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
   arrows, ^C and paste.
 - Install it as an app from the browser menu for full screen.
