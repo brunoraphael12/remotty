@@ -1,6 +1,7 @@
 import { test, expect, pair, typeInTerminal } from './fixtures.js';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { readTerminalQR } from './qr.js';
 
 test('an unpaired browser gets the pairing screen and no API access', async ({ page, host }) => {
   await page.goto(host.origin);
@@ -104,4 +105,14 @@ test('the host only listens on loopback', async ({ host }) => {
   const lines = execFileSync('ss', ['-ltnH', `sport = :${port}`], { encoding: 'utf8' }).trim().split('\n');
   expect(lines.length).toBeGreaterThan(0); // anchor: we found the listener
   for (const l of lines) expect(l).toMatch(/127\.0\.0\.1:\d+/);
+});
+
+test('the QR code printed by `remotty pair` pairs the device that scans it', async ({ page, host }) => {
+  const printed = host.cli('pair');
+  const scanned = readTerminalQR(printed);
+  const typedLink = printed.match(/open this link on the device: (\S+)/)?.[1];
+  expect(scanned).toBe(typedLink); // the picture says what the text says
+  await page.goto(scanned);
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#pair')).toBeHidden();
 });

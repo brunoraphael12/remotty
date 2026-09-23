@@ -6,3 +6,5 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/creack/pty v1.1.24
 )
+
+require rsc.io/qr v0.2.0

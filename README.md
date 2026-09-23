@@ -39,11 +39,13 @@ Pair a device:
 
 ```sh
 remotty pair
+# (a QR code)
 # Pairing code: CBGS5-KOE6K  (valid 5 minutes, one use)
 # Or open this link on the device: https://box.tailnet.ts.net/#CBGS5KOE6K
 ```
 
-Type the code on the device, or open the link and it pairs by itself. The code
+Point the phone or tablet camera at the QR code and it pairs by itself. You can
+also open the link, or type the code. The code
 travels in the URL fragment, which browsers never send to a server.
 
 A paired device stays paired as long as you use it: each use pushes its expiry
@@ -87,7 +89,7 @@ is deliberately narrow:
 | A malicious site you visit (CSRF, WebSocket hijacking) | Exact `Origin` allowlist on every write and every WebSocket; `SameSite=Strict` cookie |
 | DNS rebinding | `Host` allowlist; anything else gets 421 |
 | Injected script via terminal output or window names | Names rendered with `textContent`; enforced CSP with `script-src 'self'` |
-| Supply chain | Two Go dependencies, xterm.js bundled with its license, no build step |
+| Supply chain | Three small Go dependencies (PTY, WebSocket, QR), xterm.js bundled with its license, no build step |
 
 Only hashes of the pairing code and device tokens are stored, in
 `~/.local/state/remotty` with mode 0600. The CSP allows `'unsafe-inline'` for

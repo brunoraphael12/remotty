@@ -85,8 +85,12 @@ func pair(args []string, store access.Store, out io.Writer) error {
 	if *asJSON {
 		return json.NewEncoder(out).Encode(map[string]string{"code": code})
 	}
+	link := pairingLink(store.Dir, code)
+	if art, err := terminalQR(link); link != "" && err == nil {
+		fmt.Fprint(out, "\nScan with the phone or tablet camera:\n\n", art, "\n")
+	}
 	fmt.Fprintf(out, "Pairing code: %s-%s  (valid 5 minutes, one use)\n", code[:5], code[5:])
-	if link := pairingLink(store.Dir, code); link != "" {
+	if link != "" {
 		fmt.Fprintf(out, "Or open this link on the device: %s\n", link)
 	}
 	return nil
