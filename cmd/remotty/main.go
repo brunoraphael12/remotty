@@ -25,7 +25,11 @@ const usage = `remotty — your tmux windows in a browser tab.
 `
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout); err != nil {
+	err := run(os.Args[1:], os.Stdout)
+	if errors.Is(err, flag.ErrHelp) {
+		return // the flag package already printed the usage
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "remotty:", err)
 		os.Exit(1)
 	}
@@ -79,7 +83,9 @@ func pair(args []string, store access.Store, out io.Writer) error {
 		return json.NewEncoder(out).Encode(map[string]string{"code": code})
 	}
 	fmt.Fprintf(out, "Pairing code: %s-%s  (valid 5 minutes, one use)\n", code[:5], code[5:])
-	fmt.Fprintln(out, "Open remotty on the device and type it in.")
+	if link := pairingLink(store.Dir, code); link != "" {
+		fmt.Fprintf(out, "Or open this link on the device: %s\n", link)
+	}
 	return nil
 }
 

@@ -9,6 +9,16 @@ test('an unpaired browser gets the pairing screen and no API access', async ({ p
   expect(status).toBe(401);
 });
 
+test('the link printed by `remotty pair` pairs in one step and drops the code from the URL', async ({ page, host }) => {
+  const printed = host.cli('pair');
+  const link = printed.match(/open this link on the device: (\S+)/)?.[1];
+  expect(link, printed).toBeTruthy();
+  await page.goto(link);
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#pair')).toBeHidden();
+  expect(page.url()).not.toContain('#'); // the code does not linger in history or bookmarks
+});
+
 test('a wrong code is refused and a used code cannot pair twice', async ({ page, host, browser }) => {
   await page.goto(host.origin);
   await page.getByLabel('Code').fill('AAAAA-AAAAA');

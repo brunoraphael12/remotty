@@ -17,25 +17,26 @@ Requires Linux or WSL2, tmux 3.2+, and [Go](https://go.dev/dl/) 1.24+ to build.
 
 ```sh
 go install github.com/pablowinck/remotty/cmd/remotty@latest
+tailscale serve --bg 7681   # HTTPS on your tailnet, private to your devices
 remotty serve
 ```
 
-Publish it on your tailnet (HTTPS, private to your devices), and tell remotty the
-origin it is served from:
+`remotty serve` finds this machine's tailnet name by itself and prints the URL to
+open. The first `tailscale serve` asks you to enable Serve for your tailnet in the
+admin console; that is a one-time click.
+
+Pair a device:
 
 ```sh
-tailscale serve --bg 7681
-remotty serve -origin https://<machine>.<tailnet>.ts.net
+remotty pair
+# Pairing code: CBGS5-KOE6K  (valid 5 minutes, one use)
+# Or open this link on the device: https://box.tailnet.ts.net/#CBGS5KOE6K
 ```
 
-The first `tailscale serve` asks you to enable Serve for your tailnet in the admin
-console; that is a one-time click.
-
-Pair a device: run `remotty pair` on the host, open the URL on the tablet, type the
-code. It is valid for five minutes and works once.
+Type the code on the device, or open the link and it pairs by itself. The code
+travels in the URL fragment, which browsers never send to a server.
 
 ```sh
-remotty pair        # one-time code
 remotty devices     # what is paired
 remotty revoke ID   # unpair; its open terminals close within a second
 ```

@@ -22,8 +22,8 @@ import (
 
 func serve(args []string, store access.Store) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	addr := fs.String("addr", "127.0.0.1:7681", "listen address; keep it on loopback and publish with `tailscale serve`")
-	origins := fs.String("origin", "", "comma-separated origins the UI is served from, e.g. https://box.tailnet.ts.net (default: https://localhost:PORT)")
+	addr := fs.String("addr", "127.0.0.1:7681", "listen `address`; keep it on loopback and publish it with tailscale serve")
+	origins := fs.String("origin", "", "comma-separated `origins` the UI is served from (default: this machine's tailnet name, plus localhost)")
 	socket := fs.String("tmux-socket", "", "tmux socket path (default: tmux's own default socket)")
 	session := fs.String("session", "main", "tmux session whose windows become tabs")
 	if err := fs.Parse(args); err != nil {
@@ -37,7 +37,11 @@ func serve(args []string, store access.Store) error {
 	if err != nil {
 		return err
 	}
+	if *origins == "" {
+		*origins = detectOrigins()
+	}
 	allowed := originList(*origins, ln.Addr().(*net.TCPAddr).Port)
+	saveURL(store.Dir, allowed[0])
 	tm := sessions.Tmux{Socket: tmuxSocket(*socket), Session: *session}
 	if err := tm.Ensure(); err != nil {
 		return fmt.Errorf("tmux: %w", err)
@@ -47,6 +51,7 @@ func serve(args []string, store access.Store) error {
 	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm)), ReadHeaderTimeout: 10 * time.Second}
 	// Scripts and tests read this line to learn the port when -addr ends in :0.
 	fmt.Printf("remotty listening on http://%s (origins: %s)\n", ln.Addr(), strings.Join(allowed, ", "))
+	fmt.Printf("Open %s on your device, then run `remotty pair` here.\n", allowed[0])
 	return runUntilSignal(srv, ln)
 }
 
@@ -85,7 +90,7 @@ func terminalEnv() []string {
 // which lets scripts ask for a random port and still name the origin up front.
 func originList(flagValue string, port int) []string {
 	if flagValue == "" {
-		flagValue = "https://localhost:0"
+		flagValue = "http://localhost:0"
 	}
 	var list []string
 	for _, o := range strings.Split(flagValue, ",") {
