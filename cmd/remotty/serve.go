@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -57,78 +55,19 @@ func routes(guard access.Guard, tm sessions.Tmux) http.Handler {
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("POST /api/pair", guard.HandlePair)
 	mux.HandleFunc("GET /api/me", guard.RequireDevice(access.HandleMe))
-	mux.HandleFunc("GET /api/windows", guard.RequireDevice(listWindows(tm)))
-	mux.HandleFunc("POST /api/windows", guard.RequireDevice(createWindow(tm)))
-	mux.HandleFunc("PATCH /api/windows/{id}", guard.RequireDevice(renameWindow(tm)))
-	mux.HandleFunc("DELETE /api/windows/{id}", guard.RequireDevice(closeWindow(tm)))
-	mux.HandleFunc("GET /api/windows/{id}/tty", guard.RequireDevice(attach(tm)))
+	tm.Routes(mux, guard.RequireDevice, attach)
 	return mux
 }
 
-func listWindows(tm sessions.Tmux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		list, err := tm.List()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		writeJSON(w, list)
+// attach upgrades to a WebSocket and runs argv in a PTY behind it. Origin was
+// already checked by the guard against the exact allowlist; the library's own
+// same-host check would wrongly reject the tailnet name.
+func attach(w http.ResponseWriter, r *http.Request, argv []string) {
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	if err != nil {
+		return
 	}
-}
-
-type windowName struct {
-	Name string `json:"name"`
-}
-
-func createWindow(tm sessions.Tmux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req windowName
-		if !decode(w, r, &req) {
-			return
-		}
-		id, err := tm.Create(req.Name)
-		if !respond(w, err) {
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-		writeJSON(w, map[string]string{"id": id})
-	}
-}
-
-func renameWindow(tm sessions.Tmux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req windowName
-		if !decode(w, r, &req) {
-			return
-		}
-		if respond(w, tm.Rename(r.PathValue("id"), req.Name)) {
-			w.WriteHeader(http.StatusNoContent)
-		}
-	}
-}
-
-func closeWindow(tm sessions.Tmux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if respond(w, tm.Close(r.PathValue("id"))) {
-			w.WriteHeader(http.StatusNoContent)
-		}
-	}
-}
-
-func attach(tm sessions.Tmux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		argv, err := tm.AttachCommand(r.PathValue("id"))
-		if !respond(w, err) {
-			return
-		}
-		// Origin was already checked by the guard against the exact allowlist;
-		// the library's own same-host check would wrongly reject the tailnet name.
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
-		if err != nil {
-			return
-		}
-		terminal.Serve(r.Context(), conn, argv, terminalEnv())
-	}
+	terminal.Serve(r.Context(), conn, argv, terminalEnv())
 }
 
 // terminalEnv gives tmux a sane terminal type; everything else is inherited.
@@ -140,32 +79,6 @@ func terminalEnv() []string {
 		}
 	}
 	return env
-}
-
-// respond maps domain errors to HTTP. It returns false when it wrote an error.
-func respond(w http.ResponseWriter, err error) bool {
-	switch {
-	case err == nil:
-		return true
-	case errors.Is(err, sessions.ErrBadWindowID), errors.Is(err, sessions.ErrBadName):
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	default:
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	return false
-}
-
-func decode(w http.ResponseWriter, r *http.Request, v any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(v); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return false
-	}
-	return true
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
 }
 
 // originList parses -origin. A ":0" port means "the port we actually bound",
