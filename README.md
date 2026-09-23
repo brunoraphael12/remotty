@@ -13,7 +13,7 @@ machine and drive them from a tablet while travelling.
 
 ## Quick start
 
-Requires Linux or WSL2, tmux, and [Go](https://go.dev/dl/) to build.
+Requires Linux or WSL2, tmux 3.2+, and [Go](https://go.dev/dl/) 1.24+ to build.
 
 ```sh
 go install github.com/pablowinck/remotty/cmd/remotty@latest
