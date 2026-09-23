@@ -28,6 +28,16 @@ test('creates, switches, renames and closes agent tabs', async ({ page, host }) 
   expect(host.windows().map((w) => w.name)).not.toContain('testador');
 });
 
+test('upright, the tabs move to a top strip and the terminal takes the full width', async ({ page, host }) => {
+  await pair(page, host);
+  const width = () => page.locator('#stage').evaluate((e) => e.getBoundingClientRect().width);
+  // Anchor: in landscape the sidebar takes a slice of the width.
+  expect(await width()).toBeLessThan(page.viewportSize().width - 100);
+  await page.setViewportSize({ width: 800, height: 1280 });
+  await expect.poll(width).toBeGreaterThan(780);
+  expect((await page.locator('#tabs').boundingBox()).height).toBeLessThan(120);
+});
+
 test('windows created over ssh or mosh show up without reloading', async ({ page, host }) => {
   await pair(page, host);
   host.tmux('new-window', '-d', '-t', '=main:', '-n', 'via-mosh');

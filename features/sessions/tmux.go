@@ -118,6 +118,9 @@ func (t Tmux) Close(id string) error {
 // AttachCommand returns the argv that attaches a fresh grouped client to one
 // window. Each browser tab gets its own grouped session, so tabs can view
 // different windows at once; destroy-unattached removes it when the tab closes.
+// The status bar goes off in that session only: the page already lists the
+// windows, and the line is worth more to the terminal. The user's own session,
+// seen over ssh or mosh, keeps whatever it had.
 func (t Tmux) AttachCommand(id string) ([]string, error) {
 	if !windowIDPattern.MatchString(id) {
 		return nil, ErrBadWindowID
@@ -126,6 +129,7 @@ func (t Tmux) AttachCommand(id string) ([]string, error) {
 		"tmux", "-S", t.Socket,
 		"new-session", "-t", "=" + t.Session,
 		";", "set-option", "destroy-unattached", "on",
+		";", "set-option", "status", "off",
 		";", "select-window", "-t", id,
 	}, nil
 }

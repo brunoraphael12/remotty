@@ -76,8 +76,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 #status { position: fixed; right: .6rem; bottom: 3.4rem; margin: 0; padding: .3rem .6rem; border-radius: 6px; background: var(--panel); color: var(--muted); }
 #status:empty { display: none; }
 
-/* Narrow screens (phone, split-screen tablet): tabs become a strip on top. */
-@media (max-width: 700px) {
+/* Portrait or narrow (tablet upright, phone, split screen): width is scarce and
+   height is not, so tabs become a strip on top and the terminal gets full width. */
+@media (orientation: portrait), (max-width: 700px) {
   #app { grid-template: "tabs" auto "stage" 1fr "keys" auto / 1fr; }
   #tabs { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); }
   #tab-list { display: flex; overflow-x: auto; overflow-y: hidden; }

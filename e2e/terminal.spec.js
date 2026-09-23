@@ -9,6 +9,20 @@ test('pairs with a CLI code, runs a command and shows its output', async ({ page
   expect(host.capture(host.windows()[0].id)).toContain('resultado-42');
 });
 
+test('the browser view hides the tmux status bar without touching the user session', async ({ page, host }) => {
+  await pair(page, host);
+  await typeInTerminal(page, 'echo pronto\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('pronto');
+  // The attached client is the browser; its session is the one to inspect.
+  const [web] = host.tmux('list-clients', '-F', '#{client_session}').trim().split('\n');
+  expect(web).not.toBe('main');
+  // -A resolves inherited values; show-options does not accept the "=" exact-match prefix.
+  const status = (session) => host.tmux('show-options', '-Av', '-t', session, 'status').trim();
+  expect(status(web)).toBe('off');
+  expect(status('main')).toBe('on'); // anchor: ssh/mosh still see their status bar
+  await expect(page.locator('#terminal .xterm-rows')).not.toContainText('[main');
+});
+
 test('the terminal and its process survive a page reload', async ({ page, host }) => {
   await pair(page, host);
   await typeInTerminal(page, 'export MARCA=viva-$$; echo pronto\n');
