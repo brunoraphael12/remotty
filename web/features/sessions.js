@@ -17,8 +17,13 @@ export function createSessions({ onSelect, onError }) {
       onError(e);
       return;
     }
-    if (current && !windows.some((w) => w.id === current)) current = null;
     render();
+    // The open window was closed elsewhere (ssh, an agent exiting): follow tmux
+    // to a window that still exists instead of retrying a dead one forever.
+    if (current && !windows.some((w) => w.id === current)) {
+      const next = windows.find((w) => w.active) || windows[0];
+      select(next ? next.id : null);
+    }
   }
 
   function render() {

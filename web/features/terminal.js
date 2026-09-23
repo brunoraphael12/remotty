@@ -3,7 +3,9 @@
 import { Terminal } from '/vendor/xterm/xterm.mjs';
 import { FitAddon } from '/vendor/xterm/addon-fit.mjs';
 
-const RECONNECT_MS = 1000;
+// Retry fast after a blip, then back off so a host that is down (or a tablet
+// that lost signal) is not hammered. Reset on every successful connection.
+const RETRY_MS = [500, 1000, 2000, 4000, 8000];
 
 export function createTerminal({ onStatus }) {
   const term = new Terminal({
@@ -19,6 +21,7 @@ export function createTerminal({ onStatus }) {
 
   let socket = null;
   let windowId = null;
+  let failures = 0;
   let ctrlArmed = false;
   const encoder = new TextEncoder();
 
@@ -45,6 +48,7 @@ export function createTerminal({ onStatus }) {
     const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/windows/${encodeURIComponent(id)}/tty`);
     ws.binaryType = 'arraybuffer';
     ws.onopen = () => {
+      failures = 0;
       onStatus('');
       fit.fit();
       sendResize();
@@ -54,7 +58,8 @@ export function createTerminal({ onStatus }) {
     ws.onclose = () => {
       if (socket !== ws || windowId !== id) return; // superseded by another window
       onStatus('Reconnecting…');
-      setTimeout(() => windowId === id && connect(id), RECONNECT_MS);
+      const wait = RETRY_MS[Math.min(failures++, RETRY_MS.length - 1)];
+      setTimeout(() => windowId === id && connect(id), wait);
     };
     socket = ws;
   }

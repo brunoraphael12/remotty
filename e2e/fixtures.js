@@ -47,11 +47,15 @@ export class Host {
   }
 }
 
-export async function startHost(dir, extraArgs = []) {
+// startHost runs the binary against dir. reuseTmux restarts only the host, the
+// way a service manager would, leaving the tmux server and its shells running.
+export async function startHost(dir, extraArgs = [], { reuseTmux = false } = {}) {
   const env = cleanEnv(dir);
-  // Start tmux with a bare shell first, so new windows never read the user's rc files.
-  execFileSync('tmux', ['-S', join(dir, 'tmux.sock'), '-f', '/dev/null', 'new-session', '-d', '-s', 'main', '-x', '120', '-y', '40', 'bash --norc --noprofile'], { env });
-  execFileSync('tmux', ['-S', join(dir, 'tmux.sock'), 'set-option', '-g', 'default-command', 'bash --norc --noprofile'], { env });
+  if (!reuseTmux) {
+    // Start tmux with a bare shell first, so new windows never read the user's rc files.
+    execFileSync('tmux', ['-S', join(dir, 'tmux.sock'), '-f', '/dev/null', 'new-session', '-d', '-s', 'main', '-x', '120', '-y', '40', 'bash --norc --noprofile'], { env });
+    execFileSync('tmux', ['-S', join(dir, 'tmux.sock'), 'set-option', '-g', 'default-command', 'bash --norc --noprofile'], { env });
+  }
   const proc = spawn(BIN, ['serve', '-addr', '127.0.0.1:0', '-tmux-socket', join(dir, 'tmux.sock'), ...extraArgs], { env });
   const origin = await new Promise((ok, fail) => {
     let out = '';
