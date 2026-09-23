@@ -36,35 +36,38 @@ type control struct {
 // Serve runs argv in a PTY and pumps bytes between it and conn until either
 // side ends. It owns conn and closes it before returning.
 func Serve(ctx context.Context, conn *websocket.Conn, argv []string, env []string) error {
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Env = env
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: 80, Rows: 24})
+	ptmx, stop, err := start(argv, env)
 	if err != nil {
 		conn.Close(websocket.StatusInternalError, "could not start terminal")
 		return err
 	}
-	defer func() {
-		ptmx.Close()
-		// Killing the client is safe: tmux keeps the window alive without it.
-		cmd.Process.Kill()
-		cmd.Wait()
-	}()
+	defer stop()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	conn.SetReadLimit(maxFrame)
-
-	go func() {
-		defer cancel()
-		pumpOutput(ctx, conn, ptmx)
-	}()
-	go func() {
-		defer cancel()
-		ping(ctx, conn)
-	}()
+	// Whichever side ends first cancels the others.
+	go func() { defer cancel(); pumpOutput(ctx, conn, ptmx) }()
+	go func() { defer cancel(); ping(ctx, conn) }()
 	err = pumpInput(ctx, conn, ptmx)
 	conn.Close(websocket.StatusNormalClosure, "")
 	return err
+}
+
+// start runs argv in a new PTY. stop closes it and kills the process; killing
+// the client is safe because tmux keeps the window alive without it.
+func start(argv, env []string) (*os.File, func(), error) {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = env
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: 80, Rows: 24})
+	if err != nil {
+		return nil, nil, err
+	}
+	return ptmx, func() {
+		ptmx.Close()
+		cmd.Process.Kill()
+		cmd.Wait()
+	}, nil
 }
 
 // ping returns when the client stops answering, which cancels the session.

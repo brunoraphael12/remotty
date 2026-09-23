@@ -93,28 +93,38 @@ func (s Store) NewCode() (string, error) {
 // wrong guesses burn it.
 func (s Store) Redeem(code, name string) (token string, dev Device, err error) {
 	err = s.locked(func() error {
-		var p pendingCode
-		if err := readJSON(s.path("pending.json"), &p); err != nil {
+		if err := s.consumeCode(code); err != nil {
 			return err
 		}
-		if p.Hash == "" || s.now().After(p.Expires) {
-			return ErrInvalidCode
-		}
-		if subtle.ConstantTimeCompare([]byte(hash(NormalizeCode(code))), []byte(p.Hash)) != 1 {
-			return s.recordFailure(p)
-		}
-		if err := os.Remove(s.path("pending.json")); err != nil {
-			return err
-		}
-		token = rand.Text()
-		dev = Device{ID: rand.Text()[:6], Name: CleanName(name), TokenHash: hash(token), Created: s.now(), Expires: s.now().Add(deviceTTL)}
-		devices, err := s.readDevices()
-		if err != nil {
-			return err
-		}
-		return writeJSON(s.path("devices.json"), append(devices, dev))
+		token, dev, err = s.addDevice(name)
+		return err
 	})
 	return token, dev, err
+}
+
+// consumeCode checks code against the pending one and deletes it on success.
+func (s Store) consumeCode(code string) error {
+	var p pendingCode
+	if err := readJSON(s.path("pending.json"), &p); err != nil {
+		return err
+	}
+	if p.Hash == "" || s.now().After(p.Expires) {
+		return ErrInvalidCode
+	}
+	if subtle.ConstantTimeCompare([]byte(hash(NormalizeCode(code))), []byte(p.Hash)) != 1 {
+		return s.recordFailure(p)
+	}
+	return os.Remove(s.path("pending.json"))
+}
+
+func (s Store) addDevice(name string) (string, Device, error) {
+	token := rand.Text()
+	dev := Device{ID: rand.Text()[:6], Name: CleanName(name), TokenHash: hash(token), Created: s.now(), Expires: s.now().Add(deviceTTL)}
+	devices, err := s.readDevices()
+	if err != nil {
+		return "", Device{}, err
+	}
+	return token, dev, writeJSON(s.path("devices.json"), append(devices, dev))
 }
 
 func (s Store) recordFailure(p pendingCode) error {

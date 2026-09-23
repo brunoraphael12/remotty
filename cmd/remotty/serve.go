@@ -20,42 +20,65 @@ import (
 	"github.com/pablowinck/remotty/web"
 )
 
-func serve(args []string, store access.Store) error {
-	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	addr := fs.String("addr", "127.0.0.1:7681", "listen `address`; keep it on loopback and publish it with tailscale serve")
-	origins := fs.String("origin", "", "comma-separated `origins` the UI is served from (default: this machine's tailnet name, plus localhost)")
-	socket := fs.String("tmux-socket", "", "tmux socket path (default: tmux's own default socket)")
-	session := fs.String("session", "main", "tmux session whose windows become tabs")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if host, _, err := net.SplitHostPort(*addr); err == nil && !isLoopback(host) {
-		log.Printf("warning: listening on %s, not loopback. Anyone who can reach it only needs a pairing code.", host)
-	}
+// serveFlags is everything `remotty serve` (and `remotty install`) accepts.
+type serveFlags struct {
+	addr, origins, socket, session string
+}
 
-	ln, err := net.Listen("tcp", *addr)
+func parseServeFlags(args []string) (serveFlags, error) {
+	var f serveFlags
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	fs.StringVar(&f.addr, "addr", "127.0.0.1:7681", "listen `address`; keep it on loopback and publish it with tailscale serve")
+	fs.StringVar(&f.origins, "origin", "", "comma-separated `origins` the UI is served from (default: this machine's tailnet name, plus localhost)")
+	fs.StringVar(&f.socket, "tmux-socket", "", "tmux socket path (default: tmux's own default socket)")
+	fs.StringVar(&f.session, "session", "main", "tmux session whose windows become tabs")
+	return f, fs.Parse(args)
+}
+
+func serve(args []string, store access.Store) error {
+	f, err := parseServeFlags(args)
 	if err != nil {
 		return err
 	}
-	if *origins == "" {
-		*origins = detectOrigins()
+	warnIfExposed(f.addr)
+	ln, err := net.Listen("tcp", f.addr)
+	if err != nil {
+		return err
 	}
-	allowed := originList(*origins, ln.Addr().(*net.TCPAddr).Port)
-	if len(allowed) == 0 {
-		return fmt.Errorf("-origin %q names no origin", *origins)
+	allowed, err := resolveOrigins(f.origins, ln.Addr().(*net.TCPAddr).Port)
+	if err != nil {
+		return err
 	}
-	saveURL(store.Dir, allowed[0])
-	tm := sessions.Tmux{Socket: tmuxSocket(*socket), Session: *session}
+	tm := sessions.Tmux{Socket: tmuxSocket(f.socket), Session: f.session}
 	if err := tm.Ensure(); err != nil {
 		return fmt.Errorf("tmux: %w", err)
 	}
-
+	saveURL(store.Dir, allowed[0])
 	guard := access.Guard{Store: store, Origins: allowed}
 	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm)), ReadHeaderTimeout: 10 * time.Second}
 	// Scripts and tests read this line to learn the port when -addr ends in :0.
 	fmt.Printf("remotty listening on http://%s (origins: %s)\n", ln.Addr(), strings.Join(allowed, ", "))
 	fmt.Printf("Open %s on your device, then run `remotty pair` here.\n", allowed[0])
 	return runUntilSignal(srv, ln)
+}
+
+func warnIfExposed(addr string) {
+	if host, _, err := net.SplitHostPort(addr); err == nil && !isLoopback(host) {
+		log.Printf("warning: listening on %s, not loopback. Anyone who can reach it only needs a pairing code.", host)
+	}
+}
+
+// resolveOrigins turns -origin (or the detected default) into the exact list
+// the guard enforces.
+func resolveOrigins(flagValue string, port int) ([]string, error) {
+	if flagValue == "" {
+		flagValue = detectOrigins()
+	}
+	allowed := originList(flagValue, port)
+	if len(allowed) == 0 {
+		return nil, fmt.Errorf("-origin %q names no origin", flagValue)
+	}
+	return allowed, nil
 }
 
 func routes(guard access.Guard, tm sessions.Tmux) http.Handler {

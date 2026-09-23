@@ -27,6 +27,10 @@ WantedBy=default.target
 // install writes and starts a systemd user service running `remotty serve`
 // with the given serve flags.
 func install(args []string, out io.Writer) error {
+	// Parse now, so a typo fails here and not in a crash-looping service.
+	if _, err := parseServeFlags(args); err != nil {
+		return err
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err
