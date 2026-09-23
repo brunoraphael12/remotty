@@ -1,7 +1,7 @@
 // One xterm.js instance wired to one window's WebSocket at a time. Only the
 // visible window holds a socket, so 30 agents cost the tablet one terminal.
-import { Terminal } from '/vendor/xterm/xterm.mjs';
-import { FitAddon } from '/vendor/xterm/addon-fit.mjs';
+import { Terminal } from '/lib/xterm/xterm.mjs';
+import { FitAddon } from '/lib/xterm/addon-fit.mjs';
 
 // Retry fast after a blip, then back off so a host that is down (or a tablet
 // that lost signal) is not hammered. Reset on every successful connection.

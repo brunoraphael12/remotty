@@ -74,7 +74,7 @@ is deliberately narrow:
 | A malicious site you visit (CSRF, WebSocket hijacking) | Exact `Origin` allowlist on every write and every WebSocket; `SameSite=Strict` cookie |
 | DNS rebinding | `Host` allowlist; anything else gets 421 |
 | Injected script via terminal output or window names | Names rendered with `textContent`; enforced CSP with `script-src 'self'` |
-| Supply chain | Two Go dependencies, xterm.js vendored with its license, no build step |
+| Supply chain | Two Go dependencies, xterm.js bundled with its license, no build step |
 
 Only hashes of the pairing code and device tokens are stored, in
 `~/.local/state/remotty` with mode 0600. The CSP allows `'unsafe-inline'` for
@@ -103,4 +103,4 @@ e2e/                browser tests
 
 ## License
 
-MIT. xterm.js is MIT, see `web/vendor/xterm/LICENSE`.
+MIT. xterm.js is MIT, see `web/lib/xterm/LICENSE`.
