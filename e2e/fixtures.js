@@ -71,15 +71,22 @@ export async function startHost(dir, extraArgs = [], { reuseTmux = false } = {})
   return new Host(dir, proc, origin);
 }
 
+function stop(proc) {
+  if (proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve();
+  return new Promise((ok) => { proc.once('exit', ok); proc.kill(); });
+}
+
 export const test = base.extend({
   host: async ({}, use) => {
     const dir = mkdtempSync(join(tmpdir(), 'remotty-e2e-'));
     // The UI is reached as http://localhost:PORT, so that is the allowed origin.
     const host = await startHost(dir, ['-origin', 'http://localhost:0']);
     await use(host);
-    host.proc.kill();
+    // kill() only sends the signal: wait for the exit, or the host may still be
+    // writing its state (device renewal) while the directory is being removed.
+    await stop(host.proc);
     try { execFileSync('tmux', ['-S', host.socket, 'kill-server']); } catch {}
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
   },
 
   // A page that records every request leaving the host's origin and every CSP
