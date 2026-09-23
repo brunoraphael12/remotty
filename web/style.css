@@ -72,18 +72,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 #keys { grid-area: keys; display: flex; gap: .3rem; padding: .3rem; overflow-x: auto; border-top: 1px solid var(--line); }
 #keys button { flex: none; min-width: 2.8rem; }
 #keys [aria-pressed="true"] { background: var(--accent); color: #000; }
+/* An SVG, not the emoji: not every device ships an emoji font (it showed as a box). */
+#keys .icon-attach { background: var(--panel) url(/attach.svg) no-repeat 50% 50% / 1.25rem; }
 
 #status { position: fixed; right: .6rem; bottom: 3.4rem; margin: 0; padding: .3rem .6rem; border-radius: 6px; background: var(--panel); color: var(--muted); }
 #status:empty { display: none; }
-
-/* Portrait or narrow (tablet upright, phone, split screen): width is scarce and
-   height is not, so tabs become a strip on top and the terminal gets full width. */
-@media (orientation: portrait), (max-width: 700px) {
-  #app { grid-template: "tabs" auto "stage" 1fr "keys" auto / 1fr; }
-  #tabs { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); }
-  #tab-list { display: flex; overflow-x: auto; overflow-y: hidden; }
-  #tab-list li { flex: none; max-width: 10rem; }
-}
 
 /* Find field and keyboard highlight in the agent list. */
 #find {
@@ -91,4 +84,30 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
 }
 #tab-list li.highlighted { outline: 2px solid var(--accent); outline-offset: -2px; }
-#tab-list li.create { color: var(--muted); font-style: italic; }
+#tab-list li.create { color: var(--muted); font-style: italic; white-space: nowrap; }
+
+/* Portrait or narrow (tablet upright, phone, split screen): width is scarce and
+   height is not, so tabs become a strip on top and the terminal gets full width.
+   Every row is pinned to the screen width (minmax(0, 1fr), min-width: 0): an
+   unbounded strip of 30 tabs once widened the page to 2000 px, the browser
+   zoomed out, and the terminal got 250 columns nobody could see. */
+@media (orientation: portrait), (max-width: 700px) {
+  #app { grid-template: "tabs" auto "stage" minmax(0, 1fr) "keys" auto / minmax(0, 1fr); }
+  #tabs { flex-direction: row; align-items: center; min-width: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  #tab-list { display: flex; gap: .2rem; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: .25rem; }
+  #tab-list li { flex: none; max-width: 9rem; padding: .45rem .55rem; }
+  #tab-list li[aria-current="true"] { box-shadow: inset 0 -3px var(--accent); }
+  #tab-list .close { display: none; } /* too small to hit next to a name; close from the tab's own shell */
+  /* The finder is an icon-sized button until tapped, then takes the whole row. */
+  #find { flex: none; width: 2.9rem; min-height: 2.75rem; padding-left: 2.4rem; background: var(--bg) url(/search.svg) no-repeat .8rem 50% / 1.2rem; }
+  #find::placeholder { color: transparent; }
+  #find:focus { width: calc(100% - .6rem); }
+  #tabs:has(#find:focus) #tab-list { display: none; }
+  #tabs:has(#find:focus:not(:placeholder-shown)) { flex-wrap: wrap; }
+  #tabs:has(#find:focus:not(:placeholder-shown)) #tab-list { display: flex; width: 100%; }
+  #new-tab { display: none; } /* the finder creates agents */
+  /* Two rows of equal keys instead of a strip that scrolls: every key visible
+     and thumb-sized. Order puts the keys an agent prompt needs most on top. */
+  #keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .25rem; overflow: visible; }
+  #keys button { min-width: 0; min-height: 2.5rem; padding: .4rem 0; }
+}

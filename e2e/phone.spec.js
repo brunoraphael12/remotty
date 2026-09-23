@@ -1,0 +1,87 @@
+import { test, expect, pair, typeInTerminal } from './fixtures.js';
+
+// A phone held upright, with many agents: the case that broke. Nothing may be
+// wider than the screen, or the page zooms out and the terminal gets columns
+// the user cannot see.
+test.use({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+
+const agents = (host, n) => { for (let i = 1; i <= n; i++) host.tmux('new-window', '-d', '-t', '=main:', '-n', `agente-com-nome-${i}`); };
+
+test('the page never gets wider than the phone', async ({ page, host }) => {
+  agents(host, 12);
+  await pair(page, host);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  expect(await page.evaluate(() => innerWidth)).toBe(360);
+});
+
+test('the terminal gets exactly the columns that fit on screen', async ({ page, host }) => {
+  agents(host, 12);
+  await pair(page, host);
+  await typeInTerminal(page, 'tput cols\n');
+  const cols = () => Number(host.tmux('list-clients', '-F', '#{client_width}').trim());
+  await expect.poll(cols).toBeGreaterThan(30); // anchor: a real terminal, not a collapsed one
+  expect(cols()).toBeLessThan(50); // 360 px of monospace, not the 130 columns of a zoomed-out page
+  // The right edge of the text must be on screen.
+  const screen = await page.locator('#terminal .xterm-screen').boundingBox();
+  expect(screen.x + screen.width).toBeLessThanOrEqual(360);
+});
+
+test('every key of the bar is on screen, big enough for a thumb, without scrolling', async ({ page, host }) => {
+  await pair(page, host);
+  const keys = page.locator('#keys button');
+  expect(await keys.count()).toBeGreaterThan(8); // anchor: the whole bar is there
+  for (const key of await keys.all()) {
+    await expect(key).toBeInViewport({ ratio: 1 });
+    const box = await key.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(40);
+    expect(box.height).toBeGreaterThanOrEqual(36);
+  }
+  const bar = await page.locator('#keys').evaluate((e) => ({ client: e.clientWidth, scroll: e.scrollWidth }));
+  expect(bar.scroll).toBeLessThanOrEqual(bar.client);
+});
+
+// The soft keyboard takes half the screen: the terminal must shrink to what is
+// left, keeping the line being typed in view.
+test('opening the soft keyboard shrinks the terminal instead of hiding the prompt', async ({ page, host }) => {
+  await pair(page, host);
+  const rows = () => Number(host.tmux('list-clients', '-F', '#{client_height}').trim());
+  await expect.poll(rows).toBeGreaterThan(20);
+  const tall = rows();
+  await page.setViewportSize({ width: 360, height: 420 }); // keyboard up
+  await expect.poll(rows).toBeLessThan(tall);
+  await typeInTerminal(page, 'echo visivel-$((9+9))\n');
+  const line = page.locator('#terminal .xterm-rows > div', { hasText: 'visivel-18' }).last();
+  await expect(line).toBeInViewport();
+  // The line must be readable at the phone's own width, not a zoomed-out page.
+  const box = await line.boundingBox();
+  expect(box.x + box.width).toBeLessThanOrEqual(360);
+  expect(await page.evaluate(() => innerWidth)).toBe(360);
+});
+
+test('the current agent and the finder stay usable in the top bar', async ({ page, host }) => {
+  agents(host, 12);
+  await pair(page, host);
+  expect(await page.evaluate(() => innerWidth)).toBe(360); // measured on the real screen, not a zoomed-out page
+  const current = page.locator('#tab-list li[aria-current="true"]');
+  await expect(current).toBeInViewport({ ratio: 0.9 });
+  // Collapsed, the finder is a thumb-sized button that leaves the row to the agents.
+  const find = await page.locator('#find').boundingBox();
+  expect(find.width).toBeGreaterThanOrEqual(44);
+  expect(find.width).toBeLessThanOrEqual(60);
+  expect(find.height).toBeGreaterThanOrEqual(40);
+  // Tapping into the finder gives it room to type a name.
+  await page.locator('#find').tap();
+  await expect.poll(async () => (await page.locator('#find').boundingBox()).width).toBeGreaterThan(200);
+});
+
+test('an agent chosen from the finder scrolls into view in the tab strip', async ({ page, host }) => {
+  agents(host, 12);
+  await pair(page, host);
+  const far = page.locator('#tab-list li', { hasText: 'agente-com-nome-12' });
+  await expect(far).not.toBeInViewport(); // anchor: it starts off screen
+  await page.locator('#find').tap();
+  await page.keyboard.type('nome-12');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#tab-list li[aria-current="true"]')).toBeInViewport({ ratio: 0.9 });
+});

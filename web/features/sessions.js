@@ -107,6 +107,13 @@ export function createSessions({ onSelect, onError, focusTerminal }) {
     highlighted = 0;
     select(id);
     focusTerminal();
+    revealCurrent();
+  }
+
+  // On a phone the tabs are a strip wider than the screen: bring the chosen one
+  // in. Only once the finder has closed, because the strip is hidden while it is open.
+  function revealCurrent() {
+    list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   async function create(name) {

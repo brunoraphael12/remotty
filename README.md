@@ -74,6 +74,10 @@ remotty revoke ID   # unpair; its open terminals close within a second
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
   arrows, ^C and paste.
+- On a phone held upright the page fits the screen exactly: the agents become a
+  strip on top (the current one is underlined), the magnifier opens the finder
+  over the whole row, and the keys sit in two rows with no sideways scrolling.
+  When the soft keyboard opens, the terminal shrinks to what is left.
 - Install it as an app from the browser menu for full screen.
 
 ## Security model
