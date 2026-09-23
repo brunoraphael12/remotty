@@ -1,0 +1,85 @@
+:root {
+  --bg: #101418;
+  --panel: #161c22;
+  --line: #26303a;
+  --text: #d7dde3;
+  --muted: #8593a0;
+  --accent: #f5a524;
+  --bell: #ff5d5d;
+  --activity: #4cc2ff;
+  --tab-w: 13rem;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* Any display rule below would otherwise beat the hidden attribute. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.4 system-ui, sans-serif;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .45rem .7rem;
+  touch-action: manipulation;
+}
+
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Pairing */
+#pair { display: grid; place-items: center; min-height: 100%; padding: 1rem; }
+.card { display: grid; gap: .8rem; width: min(24rem, 100%); background: var(--panel); padding: 1.5rem; border-radius: 10px; }
+.card h1 { margin: 0; }
+.card label { display: grid; gap: .3rem; color: var(--muted); }
+.card input { font: 1.1rem ui-monospace, monospace; padding: .6rem; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; }
+.error { color: var(--bell); min-height: 1.4em; margin: 0; }
+
+/* App: tabs on the left, terminal filling the rest, key bar at the bottom. */
+#app {
+  display: grid;
+  grid-template: "tabs stage" 1fr "tabs keys" auto / var(--tab-w) 1fr;
+  height: 100dvh;
+}
+
+#tabs { grid-area: tabs; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+#tab-list { list-style: none; margin: 0; padding: .3rem; overflow-y: auto; flex: 1; }
+#tab-list li { display: flex; align-items: center; gap: .4rem; padding: .55rem .6rem; border-radius: 6px; cursor: pointer; }
+#tab-list li[aria-current="true"] { background: var(--panel); box-shadow: inset 3px 0 var(--accent); }
+#tab-list .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-list .index { color: var(--muted); font-variant-numeric: tabular-nums; }
+#tab-list .dot { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
+#tab-list [data-state="bell"] .dot { background: var(--bell); }
+#tab-list [data-state="waiting"] .dot { background: var(--accent); }
+#tab-list [data-state="activity"] .dot { background: var(--activity); }
+#tab-list .close { padding: 0 .4rem; border: 0; background: none; color: var(--muted); }
+#new-tab { margin: .3rem; font-size: 1.2rem; }
+
+#stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; padding: .3rem; }
+#terminal { position: absolute; inset: .3rem; }
+#empty { color: var(--muted); padding: 1rem; }
+
+#keys { grid-area: keys; display: flex; gap: .3rem; padding: .3rem; overflow-x: auto; border-top: 1px solid var(--line); }
+#keys button { flex: none; min-width: 2.8rem; }
+#keys [aria-pressed="true"] { background: var(--accent); color: #000; }
+
+#status { position: fixed; right: .6rem; bottom: 3.4rem; margin: 0; padding: .3rem .6rem; border-radius: 6px; background: var(--panel); color: var(--muted); }
+#status:empty { display: none; }
+
+/* Narrow screens (phone, split-screen tablet): tabs become a strip on top. */
+@media (max-width: 700px) {
+  #app { grid-template: "tabs" auto "stage" 1fr "keys" auto / 1fr; }
+  #tabs { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); }
+  #tab-list { display: flex; overflow-x: auto; overflow-y: hidden; }
+  #tab-list li { flex: none; max-width: 10rem; }
+}

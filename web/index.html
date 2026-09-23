@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#101418">
+  <title>remotty</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.svg">
+  <link rel="stylesheet" href="/vendor/xterm/xterm.css">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main id="pair" hidden>
+    <form id="pair-form" class="card">
+      <h1>remotty</h1>
+      <p>On the host, run <code>remotty pair</code> and type the code.</p>
+      <label>Code <input id="pair-code" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required></label>
+      <label>Device name <input id="pair-name" name="name" placeholder="tablet"></label>
+      <button type="submit">Pair</button>
+      <p id="pair-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <div id="app" hidden>
+    <nav id="tabs" aria-label="Agents">
+      <ul id="tab-list"></ul>
+      <button id="new-tab" type="button" aria-label="New agent">+</button>
+    </nav>
+    <section id="stage">
+      <div id="terminal" aria-label="Terminal"></div>
+      <p id="empty" hidden>No window selected.</p>
+    </section>
+    <div id="keys" role="toolbar" aria-label="Terminal keys">
+      <button data-key="esc">Esc</button>
+      <button data-key="tab">Tab</button>
+      <button data-mod="ctrl" aria-pressed="false">Ctrl</button>
+      <button data-key="up" aria-label="Up">↑</button>
+      <button data-key="down" aria-label="Down">↓</button>
+      <button data-key="left" aria-label="Left">←</button>
+      <button data-key="right" aria-label="Right">→</button>
+      <button data-key="ctrl-c">^C</button>
+      <button data-action="paste">Paste</button>
+    </div>
+    <p id="status" role="status"></p>
+  </div>
+</body>
+</html>

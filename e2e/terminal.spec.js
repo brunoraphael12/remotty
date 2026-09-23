@@ -1,0 +1,61 @@
+import { test, expect, pair, typeInTerminal } from './fixtures.js';
+
+test('pairs with a CLI code, runs a command and shows its output', async ({ page, host }) => {
+  await pair(page, host);
+  await typeInTerminal(page, 'echo resultado-$((6*7))\n');
+  // Browser side: xterm rendered the evaluated result, not just the echoed command.
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('resultado-42');
+  // Host side: tmux itself holds the same output, so the bytes really reached the shell.
+  expect(host.capture(host.windows()[0].id)).toContain('resultado-42');
+});
+
+test('the terminal and its process survive a page reload', async ({ page, host }) => {
+  await pair(page, host);
+  await typeInTerminal(page, 'export MARCA=viva-$$; echo pronto\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('pronto');
+  await page.reload();
+  await typeInTerminal(page, 'echo "valor=$MARCA"\n');
+  // Same shell after reload: only an expanded variable turns "$MARCA" into digits.
+  await expect(page.locator('#terminal .xterm-rows')).toContainText(/valor=viva-\d+/);
+});
+
+test('key bar sends Ctrl+C to interrupt a running command', async ({ page, host }) => {
+  await pair(page, host);
+  // "$((1+1))" is echoed literally; only execution would print "nao-2-devia".
+  await typeInTerminal(page, 'sleep 300; echo nao-$((1+1))-devia\n');
+  await page.getByRole('button', { name: '^C' }).click();
+  await typeInTerminal(page, 'echo interrompido-$((2+2))\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('interrompido-4');
+  expect(host.capture(host.windows()[0].id)).not.toContain('nao-2-devia');
+});
+
+test('Ctrl toggle turns the next key into a control character', async ({ page, host }) => {
+  await pair(page, host);
+  await typeInTerminal(page, 'echo linha-que-some');
+  await page.getByRole('button', { name: 'Ctrl' }).click();
+  await expect(page.getByRole('button', { name: 'Ctrl' })).toHaveAttribute('aria-pressed', 'true');
+  await typeInTerminal(page, 'u'); // Ctrl+U erases the line
+  await expect(page.getByRole('button', { name: 'Ctrl' })).toHaveAttribute('aria-pressed', 'false');
+  await typeInTerminal(page, 'echo limpo\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('limpo');
+  expect(host.capture(host.windows()[0].id)).not.toMatch(/linha-que-somee?cho limpo/);
+});
+
+test('tmux gets the size the browser measured, and follows it on resize', async ({ page, host }) => {
+  const sizes = [];
+  page.on('websocket', (ws) => ws.on('framesent', (f) => {
+    if (typeof f.payload === 'string') sizes.push(JSON.parse(f.payload));
+  }));
+  const clientSize = () => host.tmux('list-clients', '-F', '#{client_width}x#{client_height}').trim();
+
+  await pair(page, host);
+  await expect.poll(() => sizes.length).toBeGreaterThan(0);
+  const first = sizes.at(-1);
+  expect(first.cols).not.toBe(80); // the tablet is wider than the PTY default
+  await expect.poll(clientSize).toBe(`${first.cols}x${first.rows}`);
+
+  await page.setViewportSize({ width: 700, height: 500 });
+  await expect.poll(() => sizes.at(-1).cols).toBeLessThan(first.cols);
+  const second = sizes.at(-1);
+  await expect.poll(clientSize).toBe(`${second.cols}x${second.rows}`);
+});
