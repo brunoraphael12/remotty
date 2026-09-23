@@ -105,3 +105,42 @@ func TestParseWindows(t *testing.T) {
 		t.Errorf("window 2 parsed wrong: %+v", got[1])
 	}
 }
+
+// A tab reconnecting to a window that died must not land in another window:
+// its keystrokes would reach a different agent.
+func TestAttachToMissingWindowIsRefused(t *testing.T) {
+	tm := newTestTmux(t)
+	if _, err := tm.AttachCommand("@999"); err != ErrNoWindow {
+		t.Fatalf("AttachCommand(missing) = %v, want ErrNoWindow", err)
+	}
+	windows, _ := tm.List()
+	if _, err := tm.AttachCommand(windows[0].ID); err != nil {
+		t.Fatalf("anchor: attaching to a live window failed: %v", err)
+	}
+}
+
+// The session can vanish under a running server (kill-server over ssh, the last
+// window exiting). The API must bring it back instead of failing forever.
+func TestListAndCreateRecoverAfterTheSessionDies(t *testing.T) {
+	tm := newTestTmux(t)
+	exec.Command("tmux", "-S", tm.Socket, "kill-server").Run()
+	if _, err := tm.List(); err != nil {
+		t.Fatalf("List after kill-server: %v", err)
+	}
+	exec.Command("tmux", "-S", tm.Socket, "kill-server").Run()
+	if _, err := tm.Create("depois"); err != nil {
+		t.Fatalf("Create after kill-server: %v", err)
+	}
+}
+
+func TestRejectsNamesTmuxWouldMisread(t *testing.T) {
+	tm := newTestTmux(t)
+	for _, name := range []string{"-f", "--help", "fim;", `fim\;`} {
+		if _, err := tm.Create(name); err != ErrBadName {
+			t.Errorf("Create(%q) = %v, want ErrBadName", name, err)
+		}
+	}
+	if _, err := tm.Create("a-b;c"); err != nil {
+		t.Errorf("anchor: an inner dash or semicolon is fine: %v", err)
+	}
+}

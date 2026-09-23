@@ -14,10 +14,9 @@ var files embed.FS
 // Handler serves the UI. Unknown paths fall back to index.html so a reload on
 // any client-side state still lands on the app.
 func Handler() http.Handler {
-	root, _ := fs.Sub(files, ".")
-	static := http.FileServerFS(root)
+	static := http.FileServerFS(files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := fs.Stat(root, trim(r.URL.Path)); err != nil {
+		if _, err := fs.Stat(files, trim(r.URL.Path)); err != nil {
 			r.URL.Path = "/"
 		}
 		static.ServeHTTP(w, r)

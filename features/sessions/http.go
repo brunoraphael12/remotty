@@ -63,6 +63,8 @@ func respond(w http.ResponseWriter, err error) bool {
 		return true
 	case errors.Is(err, ErrBadWindowID), errors.Is(err, ErrBadName):
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	case errors.Is(err, ErrNoWindow):
+		http.Error(w, err.Error(), http.StatusNotFound)
 	default:
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

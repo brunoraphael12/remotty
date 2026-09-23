@@ -65,12 +65,31 @@ func setHeaders(h http.Header) {
 }
 
 // needsOrigin: anything that changes state, plus WebSocket upgrades, which are
-// GETs that browsers happily send cross-site with cookies attached.
+// GETs that browsers happily send cross-site with cookies attached. Upgrade is
+// a token list ("foo, websocket"), and the handshake key alone is enough for
+// some servers, so either one marks the request as an upgrade.
 func needsOrigin(r *http.Request) bool {
-	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+	if r.Header.Get("Sec-WebSocket-Key") != "" {
 		return true
 	}
+	for _, token := range strings.Split(r.Header.Get("Upgrade"), ",") {
+		if strings.EqualFold(strings.TrimSpace(token), "websocket") {
+			return true
+		}
+	}
 	return r.Method != http.MethodGet && r.Method != http.MethodHead
+}
+
+// OriginHosts returns host[:port] of each allowed origin, the form the
+// WebSocket library's own Origin check expects.
+func (g Guard) OriginHosts() []string {
+	var hosts []string
+	for _, o := range g.Origins {
+		if u, err := url.Parse(o); err == nil {
+			hosts = append(hosts, u.Host)
+		}
+	}
+	return hosts
 }
 
 // RequireDevice lets a request through only with a live device cookie. The

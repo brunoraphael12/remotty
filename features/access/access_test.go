@@ -260,3 +260,22 @@ func TestCleanName(t *testing.T) {
 		t.Errorf("long name not cut at 40 runes: %d", len([]rune(got)))
 	}
 }
+
+// coder/websocket accepts "Upgrade: foo, websocket", so matching the header
+// exactly would let such a request skip the Origin check.
+func TestUpgradeTokenListStillNeedsOrigin(t *testing.T) {
+	g, h := guarded(t)
+	c := pairCookie(t, g, h)
+	for _, upgrade := range []string{"websocket", "WebSocket", "foo, websocket", "websocket, h2c"} {
+		r := httptest.NewRequest("GET", "/api/me", nil)
+		r.Host = "remotty.test"
+		r.Header.Set("Upgrade", upgrade)
+		r.Header.Set("Origin", "https://evil.test")
+		r.AddCookie(c)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("Upgrade %q from a foreign origin got %d, want 403", upgrade, w.Code)
+		}
+	}
+}

@@ -91,3 +91,55 @@ func TestProcessExitClosesTheSocket(t *testing.T) {
 		}
 	}
 }
+
+// A client that vanishes without closing (tablet out of signal, half-open
+// connection behind tailscale) must not keep its PTY and tmux client forever.
+func TestSilentClientIsDroppedByKeepalive(t *testing.T) {
+	old := keepalive
+	keepalive = 100 * time.Millisecond
+	t.Cleanup(func() { keepalive = old })
+
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		Serve(r.Context(), conn, []string{"sleep", "60"}, os.Environ())
+		close(done)
+	}))
+	t.Cleanup(srv.Close)
+	// Dial but never read: a client that stopped answering pings.
+	conn, _, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("bridge still holding the PTY for a client that stopped answering")
+	}
+}
+
+// Control for the keepalive test above: a client that answers pings stays
+// connected, so the keepalive cannot be "fixed" by dropping everyone.
+func TestResponsiveClientSurvivesKeepalive(t *testing.T) {
+	old := keepalive
+	keepalive = 50 * time.Millisecond
+	t.Cleanup(func() { keepalive = old })
+	conn := startBridge(t, []string{"bash", "--norc", "--noprofile"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { // the client's reader is what answers pings
+		for {
+			if _, _, err := conn.Read(ctx); err != nil {
+				return
+			}
+		}
+	}()
+	time.Sleep(600 * time.Millisecond) // about a dozen ping rounds
+	if err := conn.Write(context.Background(), websocket.MessageBinary, []byte("true\r")); err != nil {
+		t.Fatalf("a responsive client was dropped: %v", err)
+	}
+}

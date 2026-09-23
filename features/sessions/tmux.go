@@ -34,6 +34,7 @@ var (
 	windowIDPattern = regexp.MustCompile(`^@[0-9]+$`)
 	ErrBadWindowID  = errors.New("invalid window id")
 	ErrBadName      = errors.New("invalid window name")
+	ErrNoWindow     = errors.New("no such window")
 )
 
 const listFormat = "#{window_id}\t#{window_index}\t#{window_active}\t#{window_bell_flag}\t#{window_activity_flag}\t#{window_silence_flag}\t#{window_name}"
@@ -55,9 +56,23 @@ func (t Tmux) Ensure() error {
 	return err
 }
 
+// inSession runs a command that needs the session. If the session vanished
+// (kill-server over ssh, the last window exiting), it recreates it and retries
+// once, so a long-running server never gets stuck answering errors.
+func (t Tmux) inSession(args ...string) (string, error) {
+	out, err := t.run(args...)
+	if err == nil {
+		return out, nil
+	}
+	if ensureErr := t.Ensure(); ensureErr != nil {
+		return "", err
+	}
+	return t.run(args...)
+}
+
 // List returns the session's windows in index order.
 func (t Tmux) List() ([]Window, error) {
-	out, err := t.run("list-windows", "-t", "="+t.Session, "-F", listFormat)
+	out, err := t.inSession("list-windows", "-t", "="+t.Session, "-F", listFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +105,7 @@ func (t Tmux) Create(name string) (string, error) {
 	if name != "" {
 		args = append(args, "-n", name)
 	}
-	out, err := t.run(args...)
+	out, err := t.inSession(args...)
 	return strings.TrimSpace(out), err
 }
 
@@ -125,6 +140,13 @@ func (t Tmux) AttachCommand(id string) ([]string, error) {
 	if !windowIDPattern.MatchString(id) {
 		return nil, ErrBadWindowID
 	}
+	// If select-window fails, tmux still attaches the client to the active
+	// window, and the tab's keystrokes would reach a different agent. Note that
+	// display-message exits 0 with empty output for a missing target, so the
+	// check must compare the id, not trust the exit status.
+	if out, _ := t.run("display-message", "-p", "-t", id, "#{window_id}"); strings.TrimSpace(out) != id {
+		return nil, ErrNoWindow
+	}
 	return []string{
 		"tmux", "-S", t.Socket,
 		"new-session", "-t", "=" + t.Session,
@@ -134,10 +156,11 @@ func (t Tmux) AttachCommand(id string) ([]string, error) {
 	}, nil
 }
 
-// Names are passed as argv, never through a shell, so the only real risks are
-// control characters corrupting the terminal and absurd lengths.
+// Names are passed as argv, never through a shell. What remains: control
+// characters corrupting the terminal, absurd lengths, a leading "-" that tmux
+// parses as a flag, and a trailing ";" that tmux takes as a command separator.
 func validName(name string) error {
-	if len(name) > 64 {
+	if len(name) > 64 || strings.HasPrefix(name, "-") || strings.HasSuffix(name, ";") {
 		return ErrBadName
 	}
 	for _, r := range name {

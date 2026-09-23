@@ -30,6 +30,26 @@ test('closing the open window from ssh moves the page to another window', async 
   await expect.poll(() => host.capture(sobra.id)).toContain('na-sobra');
 });
 
+test('a socket to a window that no longer exists never types into another window', async ({ page, host }) => {
+  await pair(page, host);
+  const live = host.windows()[0];
+  const outcome = await page.evaluate(() => new Promise((ok) => {
+    const s = new WebSocket(`ws://${location.host}/api/windows/@999/tty`);
+    s.binaryType = 'arraybuffer';
+    s.onopen = () => { s.send(new TextEncoder().encode('echo MARCA-DA-ABA-MORTA\r')); setTimeout(() => ok('open'), 500); };
+    s.onerror = () => ok('refused');
+  }));
+  expect(outcome).toBe('refused');
+  await page.waitForTimeout(300);
+  expect(host.capture(live.id)).not.toContain('MARCA-DA-ABA-MORTA');
+  // Anchor: the same socket to the live window does reach it.
+  await page.evaluate((id) => new Promise((ok) => {
+    const s = new WebSocket(`ws://${location.host}/api/windows/${encodeURIComponent(id)}/tty`);
+    s.onopen = () => { s.send(new TextEncoder().encode('echo MARCA-VIVA\r')); setTimeout(ok, 500); };
+  }), live.id);
+  await expect.poll(() => host.capture(live.id)).toContain('MARCA-VIVA');
+});
+
 test('a device revoked while the host is down is refused when it comes back', async ({ page, host }) => {
   await pair(page, host, 'viajante');
   const port = new URL(host.origin).port;

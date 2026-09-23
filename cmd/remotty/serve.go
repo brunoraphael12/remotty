@@ -41,6 +41,9 @@ func serve(args []string, store access.Store) error {
 		*origins = detectOrigins()
 	}
 	allowed := originList(*origins, ln.Addr().(*net.TCPAddr).Port)
+	if len(allowed) == 0 {
+		return fmt.Errorf("-origin %q names no origin", *origins)
+	}
 	saveURL(store.Dir, allowed[0])
 	tm := sessions.Tmux{Socket: tmuxSocket(*socket), Session: *session}
 	if err := tm.Ensure(); err != nil {
@@ -60,19 +63,22 @@ func routes(guard access.Guard, tm sessions.Tmux) http.Handler {
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("POST /api/pair", guard.HandlePair)
 	mux.HandleFunc("GET /api/me", guard.RequireDevice(access.HandleMe))
-	tm.Routes(mux, guard.RequireDevice, attach)
+	tm.Routes(mux, guard.RequireDevice, attach(guard.OriginHosts()))
 	return mux
 }
 
-// attach upgrades to a WebSocket and runs argv in a PTY behind it. Origin was
-// already checked by the guard against the exact allowlist; the library's own
-// same-host check would wrongly reject the tailnet name.
-func attach(w http.ResponseWriter, r *http.Request, argv []string) {
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
-	if err != nil {
-		return
+// attach upgrades to a WebSocket and runs argv in a PTY behind it. The guard
+// already checked Origin; the library checks it again against the same list,
+// so the terminal never depends on a single layer.
+func attach(originHosts []string) func(http.ResponseWriter, *http.Request, []string) {
+	opts := &websocket.AcceptOptions{OriginPatterns: originHosts}
+	return func(w http.ResponseWriter, r *http.Request, argv []string) {
+		conn, err := websocket.Accept(w, r, opts)
+		if err != nil {
+			return
+		}
+		terminal.Serve(r.Context(), conn, argv, terminalEnv())
 	}
-	terminal.Serve(r.Context(), conn, argv, terminalEnv())
 }
 
 // terminalEnv gives tmux a sane terminal type; everything else is inherited.

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/creack/pty"
@@ -19,6 +20,12 @@ import (
 // maxFrame caps a single browser message. Keystrokes and pastes are small; this
 // only stops a client from making the host buffer unbounded memory.
 const maxFrame = 1 << 20
+
+// keepalive is how often the host pings the browser. A client that misses one
+// is dropped, so a tablet that lost signal without closing does not keep a PTY
+// and a tmux client alive. The TCP peer is tailscaled on loopback, so TCP
+// keepalives never notice.
+var keepalive = 30 * time.Second
 
 type control struct {
 	Type string `json:"type"`
@@ -51,9 +58,33 @@ func Serve(ctx context.Context, conn *websocket.Conn, argv []string, env []strin
 		defer cancel()
 		pumpOutput(ctx, conn, ptmx)
 	}()
+	go func() {
+		defer cancel()
+		ping(ctx, conn)
+	}()
 	err = pumpInput(ctx, conn, ptmx)
 	conn.Close(websocket.StatusNormalClosure, "")
 	return err
+}
+
+// ping returns when the client stops answering, which cancels the session.
+// The pong is read by pumpInput's conn.Read, as coder/websocket requires.
+func ping(ctx context.Context, conn *websocket.Conn) {
+	t := time.NewTicker(keepalive)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			pctx, cancel := context.WithTimeout(ctx, keepalive)
+			err := conn.Ping(pctx)
+			cancel()
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 // pumpOutput sends everything the PTY prints to the browser.

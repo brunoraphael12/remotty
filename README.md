@@ -68,7 +68,7 @@ is deliberately narrow:
 
 | Threat | Mitigation |
 |---|---|
-| Anyone on the LAN or the Windows side of WSL | Listens on `127.0.0.1` only, and every route but pairing requires a paired device anyway |
+| Anyone on the LAN | Listens on `127.0.0.1` only. On WSL2 the Windows side still reaches it through localhost forwarding, which is why every route but pairing requires a paired device |
 | Guessing the pairing code | 50-bit one-time code, 5-minute lifetime, burnt after five wrong tries |
 | Stolen or leaked device | `remotty revoke` drops it and closes its live terminals |
 | A malicious site you visit (CSRF, WebSocket hijacking) | Exact `Origin` allowlist on every write and every WebSocket; `SameSite=Strict` cookie |
