@@ -59,8 +59,9 @@ test('keys typed before the terminal connects are not lost', async ({ page, host
     await new Promise((ok) => setTimeout(ok, 800));
     ws.connectToServer();
   });
-  page.once('dialog', (d) => d.accept('lento'));
   await page.getByRole('button', { name: 'New agent' }).click();
+  await page.keyboard.type('lento');
+  await page.keyboard.press('Enter');
   await typeInTerminal(page, 'echo primeira-$((1+1)); echo segunda-$((2+2))\n');
   await expect(page.locator('#terminal .xterm-rows')).toContainText('segunda-4');
   const lento = host.windows().find((w) => w.name === 'lento');

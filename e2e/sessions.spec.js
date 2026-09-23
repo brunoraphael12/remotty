@@ -5,8 +5,10 @@ test('creates, switches, renames and closes agent tabs', async ({ page, host }) 
   const tabs = page.locator('#tab-list li');
   await expect(tabs).toHaveCount(1);
 
-  page.once('dialog', (d) => d.accept('revisor'));
+  // "+" opens the finder; typing a new name and Enter creates it.
   await page.getByRole('button', { name: 'New agent' }).click();
+  await page.keyboard.type('revisor');
+  await page.keyboard.press('Enter');
   await expect(tabs).toHaveCount(2);
   await expect(page.locator('#tab-list li[aria-current="true"] .name')).toHaveText('revisor');
   expect(host.windows().map((w) => w.name)).toContain('revisor');

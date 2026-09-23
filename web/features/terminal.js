@@ -89,7 +89,7 @@ export function createTerminal({ onStatus }) {
   wireTouchScroll(document.getElementById('terminal'), term);
   wireUploads({ send, onStatus });
 
-  return { connect, get windowId() { return windowId; } };
+  return { connect, focus: () => term.focus(), get windowId() { return windowId; } };
 }
 
 const KEYS = {
@@ -144,6 +144,12 @@ function wireTouchScroll(el, term) {
     e.preventDefault(); // keep the page from bouncing instead
   }, { passive: false });
   el.addEventListener('touchend', () => { lastY = null; });
+}
+
+// shortcutOf names a key event the way the shortcut table does: "Ctrl+Shift+K".
+export function shortcutOf(e) {
+  return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Meta', e.key.length === 1 ? e.key.toUpperCase() : e.key]
+    .filter(Boolean).join('+');
 }
 
 // Ctrl+letter is the letter's code minus 64: Ctrl+C = 0x03.

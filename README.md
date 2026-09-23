@@ -59,7 +59,12 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - The left column lists every window of the tmux session `main`. A red dot is a
   bell, amber means the window has been silent for a while (an agent waiting on
   you, if you set `monitor-silence` in tmux), blue is fresh output.
-- `+` opens a window. Double-tap a tab to rename it; `×` closes it.
+- **Keyboard first.** `Ctrl+Shift+K` opens the finder above the list: type to
+  filter by name (or a window number), arrows to move, `Enter` to open, and
+  you are typing in that agent. If nothing is named exactly that, the last row
+  creates a new agent with the name you typed; `Enter` on an empty finder
+  creates an unnamed one. `Esc` goes back to the terminal. `+` opens the finder.
+- Double-tap a tab to rename it; `×` closes it.
 - 📎 attaches a photo or file: it is saved on the host (`~/.local/state/remotty/uploads`,
   private to you) and its path is typed at the prompt, so you can say
   `look at <path>` to the agent. Up to 50 MB; nothing leaves the host.

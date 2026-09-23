@@ -84,3 +84,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   #tab-list { display: flex; overflow-x: auto; overflow-y: hidden; }
   #tab-list li { flex: none; max-width: 10rem; }
 }
+
+/* Find field and keyboard highlight in the agent list. */
+#find {
+  margin: .3rem; padding: .5rem .6rem; font: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+}
+#tab-list li.highlighted { outline: 2px solid var(--accent); outline-offset: -2px; }
+#tab-list li.create { color: var(--muted); font-style: italic; }

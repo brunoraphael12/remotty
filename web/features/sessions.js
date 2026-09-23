@@ -1,13 +1,17 @@
 // Tab list: one entry per tmux window, polled so bells and idle agents show up
-// without the tab being open.
+// without the tab being open. The field on top filters the list and creates
+// agents, so the whole flow works from the keyboard:
+//   Ctrl+Shift+K, type, Enter  -> open the highlighted agent, or create one
 import { api } from './api.js';
 
 const POLL_MS = 2000;
 
-export function createSessions({ onSelect, onError }) {
+export function createSessions({ onSelect, onError, focusTerminal }) {
   const list = document.getElementById('tab-list');
+  const find = document.getElementById('find');
   let windows = [];
   let current = null;
+  let highlighted = 0; // index into the visible rows while the field has focus
   let timer = null;
 
   async function refresh() {
@@ -26,8 +30,42 @@ export function createSessions({ onSelect, onError }) {
     }
   }
 
+  const query = () => find.value.trim();
+
+  // A number matches the window index exactly; anything else matches the name.
+  function visible() {
+    const q = query().toLowerCase();
+    if (!q) return windows;
+    if (/^\d+$/.test(q)) return windows.filter((w) => String(w.index) === q);
+    return windows.filter((w) => w.name.toLowerCase().includes(q));
+  }
+
+  // Rows the keyboard can land on: the matches, then "create" when there is a name.
+  function rows() {
+    const matches = visible();
+    const name = query();
+    const exact = matches.some((w) => w.name === name);
+    return name && !exact && !/^\d+$/.test(name) ? [...matches, { create: name }] : matches;
+  }
+
   function render() {
-    list.replaceChildren(...windows.map(item));
+    const all = rows();
+    highlighted = Math.min(highlighted, Math.max(all.length - 1, 0));
+    const searching = document.activeElement === find && query() !== '';
+    list.replaceChildren(...all.map((row, i) => {
+      const li = row.create ? createRow(row.create) : item(row);
+      li.classList.toggle('highlighted', searching && i === highlighted);
+      return li;
+    }));
+    list.querySelector('.highlighted')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function createRow(name) {
+    const li = document.createElement('li');
+    li.className = 'create';
+    li.textContent = `+ New agent "${name}"`;
+    li.addEventListener('click', () => create(name));
+    return li;
   }
 
   function item(w) {
@@ -52,7 +90,7 @@ export function createSessions({ onSelect, onError }) {
     close.setAttribute('aria-label', `Close ${w.name}`);
 
     li.append(index, dot, name, close);
-    li.addEventListener('click', (e) => (e.target === close ? remove(w) : select(w.id)));
+    li.addEventListener('click', (e) => (e.target === close ? remove(w) : open(w.id)));
     li.addEventListener('dblclick', () => rename(w));
     return li;
   }
@@ -63,13 +101,19 @@ export function createSessions({ onSelect, onError }) {
     onSelect(id);
   }
 
-  async function create() {
-    const name = prompt('Agent name (optional):');
-    if (name === null) return;
+  // open: leave the list and hand the keyboard to that agent's terminal.
+  function open(id) {
+    find.value = '';
+    highlighted = 0;
+    select(id);
+    focusTerminal();
+  }
+
+  async function create(name) {
     try {
       const { id } = await api('POST', '/api/windows', { name });
       await refresh();
-      select(id);
+      open(id);
     } catch (e) {
       onError(e);
     }
@@ -92,7 +136,37 @@ export function createSessions({ onSelect, onError }) {
     refresh();
   }
 
-  document.getElementById('new-tab').addEventListener('click', create);
+  function onFindKey(e) {
+    const all = rows();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      highlighted = (highlighted + step + all.length) % Math.max(all.length, 1);
+      render();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const row = all[highlighted];
+      if (row?.create) create(row.create);
+      else if (row) open(row.id);
+      else if (!query()) create(''); // empty field + Enter: a fresh agent
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      find.value = '';
+      render();
+      focusTerminal();
+    }
+  }
+
+  find.addEventListener('input', () => {
+    highlighted = 0;
+    render();
+  });
+  find.addEventListener('keydown', onFindKey);
+  find.addEventListener('blur', () => setTimeout(render)); // drop the highlight
+  document.getElementById('new-tab').addEventListener('click', () => {
+    find.focus();
+    render();
+  });
 
   return {
     async start() {
@@ -102,5 +176,10 @@ export function createSessions({ onSelect, onError }) {
       if (first) select(first.id);
     },
     stop: () => clearInterval(timer),
+    focusFind() {
+      find.focus();
+      find.select();
+      render();
+    },
   };
 }
