@@ -22,6 +22,7 @@ The code is organised by feature, the same three on each side:
 | pairing, cookies, security guard | `features/access/` | `web/features/access.js` | `e2e/access.spec.js` |
 | tmux windows (tabs) | `features/sessions/` | `web/features/sessions.js` | `e2e/sessions.spec.js` |
 | the terminal itself | `features/terminal/` | `web/features/terminal.js` | `e2e/terminal.spec.js` |
+| attachments | `features/uploads/` | `web/features/uploads.js` | `e2e/uploads.spec.js` |
 
 `cmd/remotty` only parses flags and wires features together. `e2e/resilience.spec.js`
 covers restarts and dropped connections; `e2e/fixtures.js` holds the helpers

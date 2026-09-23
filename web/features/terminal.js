@@ -2,6 +2,7 @@
 // visible window holds a socket, so 30 agents cost the tablet one terminal.
 import { Terminal } from '/lib/xterm/xterm.mjs';
 import { FitAddon } from '/lib/xterm/addon-fit.mjs';
+import { wireUploads } from './uploads.js';
 
 // Retry fast after a blip, then back off so a host that is down (or a tablet
 // that lost signal) is not hammered. Reset on every successful connection.
@@ -86,6 +87,7 @@ export function createTerminal({ onStatus }) {
 
   wireKeyBar({ send, toggleCtrl: () => setCtrl(!ctrlArmed), focus: () => term.focus(), onStatus });
   wireTouchScroll(document.getElementById('terminal'), term);
+  wireUploads({ send, onStatus });
 
   return { connect, get windowId() { return windowId; } };
 }

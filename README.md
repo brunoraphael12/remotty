@@ -60,6 +60,9 @@ remotty revoke ID   # unpair; its open terminals close within a second
   bell, amber means the window has been silent for a while (an agent waiting on
   you, if you set `monitor-silence` in tmux), blue is fresh output.
 - `+` opens a window. Double-tap a tab to rename it; `×` closes it.
+- 📎 attaches a photo or file: it is saved on the host (`~/.local/state/remotty/uploads`,
+  private to you) and its path is typed at the prompt, so you can say
+  `look at <path>` to the agent. Up to 50 MB; nothing leaves the host.
 - Drag a finger down on the terminal to scroll back through its history (tmux
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
@@ -101,6 +104,7 @@ cmd/remotty/        the binary: CLI and HTTP wiring
 features/access/    pairing, device cookies, the security guard
 features/sessions/  tmux windows
 features/terminal/  WebSocket <-> PTY bridge
+features/uploads/   files from the browser, saved on the host
 web/                the UI (plain ES modules, embedded into the binary)
 web/features/       UI code for the same three features
 e2e/                browser tests

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/pablowinck/remotty/features/access"
 	"github.com/pablowinck/remotty/features/sessions"
 	"github.com/pablowinck/remotty/features/terminal"
+	"github.com/pablowinck/remotty/features/uploads"
 	"github.com/pablowinck/remotty/web"
 )
 
@@ -55,7 +57,7 @@ func serve(args []string, store access.Store) error {
 	}
 	saveURL(store.Dir, allowed[0])
 	guard := access.Guard{Store: store, Origins: allowed}
-	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm)), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm, uploads.Dir(filepath.Join(store.Dir, "uploads")))), ReadHeaderTimeout: 10 * time.Second}
 	// Scripts and tests read this line to learn the port when -addr ends in :0.
 	fmt.Printf("remotty listening on http://%s (origins: %s)\n", ln.Addr(), strings.Join(allowed, ", "))
 	fmt.Printf("Open %s on your device, then run `remotty pair` here.\n", allowed[0])
@@ -81,12 +83,13 @@ func resolveOrigins(flagValue string, port int) ([]string, error) {
 	return allowed, nil
 }
 
-func routes(guard access.Guard, tm sessions.Tmux) http.Handler {
+func routes(guard access.Guard, tm sessions.Tmux, uploadDir uploads.Dir) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("POST /api/pair", guard.HandlePair)
 	mux.HandleFunc("GET /api/me", guard.RequireDevice(access.HandleMe))
 	tm.Routes(mux, guard.RequireDevice, attach(guard.OriginHosts()))
+	uploadDir.Routes(mux, guard.RequireDevice)
 	return mux
 }
 
