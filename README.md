@@ -22,7 +22,17 @@ remotty serve
 ```
 
 `remotty serve` finds this machine's tailnet name by itself and prints the URL to
-open. The first `tailscale serve` asks you to enable Serve for your tailnet in the
+open. To keep it running across reboots and crashes, install it as a systemd user
+service instead (no root needed; it takes the same flags as `serve`):
+
+```sh
+remotty install
+loginctl enable-linger   # keep it up while you are logged out
+```
+
+On WSL2, the distro stops once no Windows process holds it open, taking remotty
+and tmux with it. Start `wsl.exe -d <distro> --exec dbus-launch true` from the
+Windows Startup folder or Task Scheduler to keep it alive. The first `tailscale serve` asks you to enable Serve for your tailnet in the
 admin console; that is a one-time click.
 
 Pair a device:

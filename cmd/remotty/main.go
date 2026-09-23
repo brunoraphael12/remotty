@@ -19,6 +19,7 @@ import (
 const usage = `remotty — your tmux windows in a browser tab.
 
   remotty serve [flags]      run the server (see remotty serve -h)
+  remotty install [flags]    run serve as a systemd user service: at boot, restarted on crash
   remotty pair [--json]      print a one-time pairing code (valid 5 min)
   remotty devices            list paired devices
   remotty revoke ID|--all    unpair a device, closing its open terminals
@@ -44,6 +45,8 @@ func run(args []string, out io.Writer) error {
 	switch args[0] {
 	case "serve":
 		return serve(args[1:], store)
+	case "install":
+		return install(args[1:], out)
 	case "pair":
 		return pair(args[1:], store, out)
 	case "devices":
