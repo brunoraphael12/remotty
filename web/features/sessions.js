@@ -169,11 +169,19 @@ export function createSessions({ onSelect, onError, focusTerminal }) {
     render();
   });
   find.addEventListener('keydown', onFindKey);
+  // A tap on a result would first blur the finder, which hides the results on a
+  // phone before the click lands. Keeping focus on pointerdown lets the tap through.
+  list.addEventListener('pointerdown', (e) => {
+    if (document.activeElement === find) e.preventDefault();
+  });
   find.addEventListener('blur', () => setTimeout(render)); // drop the highlight
+  // Tapping "+" must not blur the finder on the way (the tap lands on the button,
+  // which would steal focus), so focus it after the button has taken the click.
   document.getElementById('new-tab').addEventListener('click', () => {
     find.focus();
     render();
   });
+  document.getElementById('new-tab').addEventListener('pointerdown', (e) => e.preventDefault());
 
   return {
     async start() {

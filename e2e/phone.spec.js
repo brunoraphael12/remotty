@@ -85,3 +85,23 @@ test('an agent chosen from the finder scrolls into view in the tab strip', async
   await page.keyboard.press('Enter');
   await expect(page.locator('#tab-list li[aria-current="true"]')).toBeInViewport({ ratio: 0.9 });
 });
+
+// Creating an agent on a phone must be findable without knowing a shortcut:
+// a visible "+" and a finder that says it creates.
+test('a visible + creates an agent by touch alone', async ({ page, host }) => {
+  await pair(page, host);
+  const plus = page.getByRole('button', { name: 'New agent' });
+  await expect(plus).toBeInViewport({ ratio: 1 });
+  const box = await plus.boundingBox();
+  expect(box.width).toBeGreaterThanOrEqual(40);
+  await plus.tap();
+  await expect(page.locator('#find')).toBeFocused();
+  await expect(page.locator('#find')).toHaveAttribute('placeholder', /new agent/i);
+  expect(await page.locator('#find').evaluate((e) => getComputedStyle(e, '::placeholder').color)).not.toBe('rgba(0, 0, 0, 0)');
+  await page.keyboard.type('pelo-celular');
+  await page.locator('#tab-list li.create').tap(); // tap the row, not Enter
+  await expect(page.locator('#tab-list li[aria-current="true"] .name')).toHaveText('pelo-celular');
+  await page.keyboard.type('echo criado-$((4*4))\n');
+  const w = () => host.windows().find((x) => x.name === 'pelo-celular');
+  await expect.poll(() => w() && host.capture(w().id)).toContain('criado-16');
+});

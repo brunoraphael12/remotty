@@ -75,8 +75,8 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
   arrows, ^C and paste.
 - On a phone held upright the page fits the screen exactly: the agents become a
-  strip on top (the current one is underlined), the magnifier opens the finder
-  over the whole row, and the keys sit in two rows with no sideways scrolling.
+  strip on top (the current one is underlined), `+` creates an agent and the
+  magnifier finds one (both open the finder over the whole row), and the keys sit in two rows with no sideways scrolling.
   When the soft keyboard opens, the terminal shrinks to what is left.
 - Install it as an app from the browser menu for full screen.
 
