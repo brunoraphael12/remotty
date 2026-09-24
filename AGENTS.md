@@ -69,3 +69,11 @@ produces, like `$((3*5))` turning into `15`, because the shell echoes what you t
 The e2e fixture gives each test its own tmux socket, state dir, `HOME` and port.
 Go tests use `t.TempDir()`. Keep it that way: a test that reads your real tmux
 or `~/.local/state/remotty` is a bug.
+
+## Backlog (asked by the owner, not built yet)
+
+- **Reorder agents by drag and drop** (2026-09-24). Drag a tab in the sidebar to
+  another position (row 2 to row 1, the first to the last). tmux stays the source
+  of truth: the order is the window index, so a drop should become
+  `swap-window`/`move-window` on the host, not a list kept in the browser. The
+  Alt 1–9 hotkeys follow the index, so they must follow the new order too.
