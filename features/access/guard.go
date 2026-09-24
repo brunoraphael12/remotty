@@ -60,7 +60,8 @@ func setHeaders(h http.Header) {
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("Cross-Origin-Opener-Policy", "same-origin")
 	h.Set("Cross-Origin-Resource-Policy", "same-origin")
-	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+	// Microphone for voice notes, from this page only; camera and location stay off.
+	h.Set("Permissions-Policy", "camera=(), microphone=(self), geolocation=()")
 	h.Set("Cache-Control", "no-store")
 }
 

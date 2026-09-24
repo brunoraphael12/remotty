@@ -37,8 +37,10 @@ export class Host {
   }
 
   // What tmux itself shows in a window: the ground truth the browser is compared to.
+  // -J joins lines tmux wrapped only because the pane was narrow, so a long
+  // path or sentence reads back as one line.
   capture(windowId) {
-    return this.tmux('capture-pane', '-p', '-t', windowId);
+    return this.tmux('capture-pane', '-p', '-J', '-t', windowId);
   }
 
   windows() {

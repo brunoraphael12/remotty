@@ -75,6 +75,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 #keys [aria-pressed="true"] { background: var(--accent); color: #000; }
 /* An SVG, not the emoji: not every device ships an emoji font (it showed as a box). */
 #keys .icon-attach { background: var(--panel) url(/attach.svg) no-repeat 50% 50% / 1.25rem; }
+#keys .icon-mic { background: var(--panel) url(/mic.svg) no-repeat 50% 50% / 1.25rem; }
+#keys .icon-mic[aria-pressed="true"] { background-color: var(--bell); animation: rec 1s ease-in-out infinite alternate; }
+@keyframes rec { to { background-color: #7a2323; } }
+@media (prefers-reduced-motion: reduce) { #keys .icon-mic[aria-pressed="true"] { animation: none; } }
 
 #status { position: fixed; right: .6rem; bottom: 3.4rem; margin: 0; padding: .3rem .6rem; border-radius: 6px; background: var(--panel); color: var(--muted); }
 #status:empty { display: none; }

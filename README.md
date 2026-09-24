@@ -72,6 +72,9 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - 📎 attaches a photo or file: it is saved on the host (`~/.local/state/remotty/uploads`,
   private to you) and its path is typed at the prompt, so you can say
   `look at <path>` to the agent. Up to 50 MB; nothing leaves the host.
+- 🎤 records a voice note: tap to start (the button pulses), tap again to stop.
+  It is uploaded like an attachment and its path is typed at the prompt; what
+  reads the audio is up to whatever runs in the terminal.
 - Drag a finger down on the terminal to scroll back through its history (tmux
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
@@ -89,6 +92,7 @@ is deliberately narrow:
 
 | Threat | Mitigation |
 |---|---|
+| A page using your devices | `Permissions-Policy` allows the microphone to this page only, for voice notes; camera and location stay off |
 | Anyone on the LAN | Listens on `127.0.0.1` only. On WSL2 the Windows side still reaches it through localhost forwarding, which is why every route but pairing requires a paired device |
 | Guessing the pairing code | 50-bit one-time code, 5-minute lifetime, burnt after five wrong tries |
 | Stolen or leaked device | `remotty revoke` drops it and closes its live terminals |

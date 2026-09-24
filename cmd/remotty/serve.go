@@ -56,8 +56,9 @@ func serve(args []string, store access.Store) error {
 		return fmt.Errorf("tmux: %w", err)
 	}
 	saveURL(store.Dir, allowed[0])
+	uploadDir := uploads.Dir(filepath.Join(store.Dir, "uploads"))
 	guard := access.Guard{Store: store, Origins: allowed}
-	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm, uploads.Dir(filepath.Join(store.Dir, "uploads")))), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm, uploadDir)), ReadHeaderTimeout: 10 * time.Second}
 	// Scripts and tests read this line to learn the port when -addr ends in :0.
 	fmt.Printf("remotty listening on http://%s (origins: %s)\n", ln.Addr(), strings.Join(allowed, ", "))
 	fmt.Printf("Open %s on your device, then run `remotty pair` here.\n", allowed[0])
