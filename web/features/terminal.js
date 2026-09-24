@@ -49,13 +49,37 @@ export function createTerminal({ onStatus, isShortcut = () => false }) {
     }
   }
 
+  // Last screen of each window, kept in memory. On a switch it is painted at
+  // once, so the page shows the agent instead of a blank terminal until tmux
+  // redraws; tmux's redraw then replaces it. Text only, capped, never stored.
+  const screens = new Map();
+  const SCREENS_MAX = 40;
+
+  function remember() {
+    if (!windowId) return;
+    const lines = [];
+    const buf = term.buffer.active;
+    for (let y = 0; y < term.rows; y++) lines.push(buf.getLine(buf.viewportY + y)?.translateToString(true) ?? '');
+    screens.delete(windowId); // re-insert: the Map keeps the most recent last
+    screens.set(windowId, lines.join('\r\n'));
+    if (screens.size > SCREENS_MAX) screens.delete(screens.keys().next().value);
+  }
+
   function connect(id) {
+    if (id !== windowId) remember();
     socket?.close();
     if (id !== windowId) pending = []; // keys typed for another window stay there
     windowId = id;
     term.reset();
     if (!id) return;
-    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/windows/${encodeURIComponent(id)}/tty`);
+    const last = screens.get(id);
+    if (last) term.write(`\x1b[2m${last}\x1b[0m\x1b[H`); // dimmed: it is a picture until the redraw
+
+    // The PTY is born at this size, so tmux never shrinks the window to 80x24
+    // and redraws the agent twice on every switch.
+    fit.fit();
+    const size = `cols=${term.cols}&rows=${term.rows}`;
+    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/windows/${encodeURIComponent(id)}/tty?${size}`);
     ws.binaryType = 'arraybuffer';
     ws.onopen = () => {
       failures = 0;

@@ -53,12 +53,20 @@ test('a socket to a window that no longer exists never types into another window
 // Over a real network the WebSocket takes a while to open. Whatever the user
 // types in that window must still reach the shell, in order.
 test('keys typed before the terminal connects are not lost', async ({ page, host }) => {
-  await pair(page, host);
-  // Hold back every new terminal socket for 800 ms, like a slow tailnet handshake.
-  await page.routeWebSocket(/\/tty$/, async (ws) => {
-    await new Promise((ok) => setTimeout(ok, 800));
+  // Hold back new terminal sockets for 800 ms, like a slow tailnet handshake.
+  // The route must exist before the page loads: one added later intercepts
+  // nothing, and this test passed without holding anything until held was counted.
+  let slow = false;
+  let held = 0;
+  await page.routeWebSocket(/\/tty(\?|$)/, async (ws) => { // the URL carries ?cols=&rows=
+    if (slow) {
+      held++;
+      await new Promise((ok) => setTimeout(ok, 800));
+    }
     ws.connectToServer();
   });
+  await pair(page, host);
+  slow = true;
   await page.getByRole('button', { name: 'New agent' }).click();
   await page.keyboard.type('lento');
   await page.keyboard.press('Enter');
@@ -66,6 +74,7 @@ test('keys typed before the terminal connects are not lost', async ({ page, host
   await expect(page.locator('#terminal .xterm-rows')).toContainText('segunda-4');
   const lento = host.windows().find((w) => w.name === 'lento');
   expect(host.capture(lento.id)).toMatch(/primeira-2[\s\S]*segunda-4/);
+  expect(held).toBeGreaterThan(0); // anchor: the socket really was held back
 });
 
 test('a device revoked while the host is down is refused when it comes back', async ({ page, host }) => {

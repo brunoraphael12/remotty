@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/coder/websocket"
@@ -33,10 +34,29 @@ type control struct {
 	Rows uint16 `json:"rows"`
 }
 
-// Serve runs argv in a PTY and pumps bytes between it and conn until either
-// side ends. It owns conn and closes it before returning.
-func Serve(ctx context.Context, conn *websocket.Conn, argv []string, env []string) error {
-	ptmx, stop, err := start(argv, env)
+// Size is the terminal size the PTY is born with.
+type Size struct{ Cols, Rows uint16 }
+
+// DefaultSize is used when the browser did not say how big it is.
+var DefaultSize = Size{Cols: 80, Rows: 24}
+
+// ParseSize reads "cols" and "rows" as sent by the page. A missing or absurd
+// value gives DefaultSize, like an invalid resize message is ignored.
+func ParseSize(cols, rows string) Size {
+	c, err1 := strconv.Atoi(cols)
+	r, err2 := strconv.Atoi(rows)
+	if err1 != nil || err2 != nil || c < 1 || r < 1 || c > 1000 || r > 1000 {
+		return DefaultSize
+	}
+	return Size{Cols: uint16(c), Rows: uint16(r)}
+}
+
+// Serve runs argv in a PTY of the given size and pumps bytes between it and
+// conn until either side ends. It owns conn and closes it before returning.
+// Starting at the browser's size matters: a PTY born 80x24 and resized a moment
+// later makes tmux shrink the window and every agent redraw twice per switch.
+func Serve(ctx context.Context, conn *websocket.Conn, argv []string, env []string, size Size) error {
+	ptmx, stop, err := start(argv, env, size)
 	if err != nil {
 		conn.Close(websocket.StatusInternalError, "could not start terminal")
 		return err
@@ -56,10 +76,10 @@ func Serve(ctx context.Context, conn *websocket.Conn, argv []string, env []strin
 
 // start runs argv in a new PTY. stop closes it and kills the process; killing
 // the client is safe because tmux keeps the window alive without it.
-func start(argv, env []string) (*os.File, func(), error) {
+func start(argv, env []string, size Size) (*os.File, func(), error) {
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = env
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: 80, Rows: 24})
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: size.Cols, Rows: size.Rows})
 	if err != nil {
 		return nil, nil, err
 	}

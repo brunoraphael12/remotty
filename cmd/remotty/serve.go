@@ -113,7 +113,8 @@ func attach(originHosts []string) func(http.ResponseWriter, *http.Request, []str
 		if err != nil {
 			return
 		}
-		terminal.Serve(r.Context(), conn, argv, terminalEnv())
+		size := terminal.ParseSize(r.URL.Query().Get("cols"), r.URL.Query().Get("rows"))
+		terminal.Serve(r.Context(), conn, argv, terminalEnv(), size)
 	}
 }
 

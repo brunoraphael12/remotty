@@ -20,7 +20,7 @@ func startBridge(t *testing.T, argv []string) *websocket.Conn {
 		if err != nil {
 			return
 		}
-		Serve(r.Context(), conn, argv, os.Environ())
+		Serve(r.Context(), conn, argv, os.Environ(), DefaultSize)
 	}))
 	t.Cleanup(srv.Close)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -105,7 +105,7 @@ func TestSilentClientIsDroppedByKeepalive(t *testing.T) {
 		if err != nil {
 			return
 		}
-		Serve(r.Context(), conn, []string{"sleep", "60"}, os.Environ())
+		Serve(r.Context(), conn, []string{"sleep", "60"}, os.Environ(), DefaultSize)
 		close(done)
 	}))
 	t.Cleanup(srv.Close)
