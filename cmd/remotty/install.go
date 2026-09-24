@@ -19,6 +19,10 @@ After=network-online.target
 ExecStart=%s serve %s
 Restart=on-failure
 RestartSec=2
+# remotty may be the one that starts the tmux server, which then lives in this
+# unit's cgroup. The default (control-group) kills it on every restart or
+# upgrade, and with it every agent. Only the remotty process itself is stopped.
+KillMode=process
 
 [Install]
 WantedBy=default.target

@@ -11,7 +11,7 @@ func TestRenderUnitQuotesArgumentsForSystemd(t *testing.T) {
 	if !strings.Contains(unit, want+"\n") {
 		t.Fatalf("unit ExecStart wrong:\n%s\nwant line:\n%s", unit, want)
 	}
-	for _, line := range []string{"Restart=on-failure", "WantedBy=default.target"} {
+	for _, line := range []string{"Restart=on-failure", "KillMode=process", "WantedBy=default.target"} {
 		if !strings.Contains(unit, line) {
 			t.Errorf("unit misses %q", line)
 		}
