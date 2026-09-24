@@ -84,7 +84,11 @@ export function createTerminal({ onStatus, isShortcut = () => false }) {
   // App shortcuts win over the terminal. xterm sends ESC-prefixed bytes for
   // Alt+2 or Alt+Down, which the shell would act on; returning false keeps them
   // off the wire and lets the event reach the page's own keydown handler.
-  term.attachCustomKeyEventHandler((e) => !isShortcut(e));
+  // Ctrl+V is let through to the browser, whose native paste event xterm turns
+  // into a (bracketed) paste. Sent as the ^V byte instead, Claude Code would try
+  // to read an image from the host's clipboard, which is not the viewer's.
+  const isPaste = (e) => e.type === 'keydown' && e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'v';
+  term.attachCustomKeyEventHandler((e) => !isShortcut(e) && !isPaste(e));
   term.onData(send);
   term.onBinary((data) => sendBytes(Uint8Array.from(data, (c) => c.charCodeAt(0))));
   term.onResize(sendResize);

@@ -64,7 +64,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 #tab-list [data-state="waiting"] .dot { background: var(--accent); }
 #tab-list [data-state="activity"] .dot { background: var(--activity); }
 #tab-list .close { padding: 0 .4rem; border: 0; background: none; color: var(--muted); }
-#new-tab { margin: .3rem; font-size: 1.2rem; }
+#tab-actions { display: flex; gap: .3rem; margin: .3rem; }
+#new-tab { flex: 1; font-size: 1.2rem; }
+#restore { flex: none; color: var(--muted); }
 
 #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; padding: .3rem; }
 #terminal { position: absolute; inset: .3rem; }
@@ -132,8 +134,10 @@ kbd {
   #tabs:has(#find:focus:not(:placeholder-shown)) #tab-list { display: flex; width: 100%; }
   /* "+" stays visible: on a phone there is no Ctrl+Shift+K, and the magnifier
      alone does not say "create". It opens the finder, which creates. */
-  #new-tab { flex: none; order: -1; width: 2.9rem; min-height: 2.75rem; margin: .3rem 0 .3rem .3rem; padding: 0; }
-  #tabs:has(#find:focus) #new-tab { display: none; }
+  #tab-actions { flex: none; order: -1; margin: .3rem 0 .3rem .3rem; }
+  #new-tab { flex: none; width: 2.9rem; min-height: 2.75rem; padding: 0; }
+  #restore { display: none; } /* a rare action; on a phone the strip has no room for it */
+  #tabs:has(#find:focus) #tab-actions { display: none; }
   /* Two rows of equal keys instead of a strip that scrolls: every key visible
      and thumb-sized. Order puts the keys an agent prompt needs most on top. */
   #keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .25rem; overflow: visible; }

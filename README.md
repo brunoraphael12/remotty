@@ -75,6 +75,13 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - 🎤 records a voice note: tap to start (the button pulses), tap again to stop.
   It is uploaded like an attachment and its path is typed at the prompt; what
   reads the audio is up to whatever runs in the terminal.
+- **Restore** (under the agent list) reopens, one window each, every Claude Code
+  conversation touched in the last 2 hours that no process holds anymore — after
+  the machine or tmux went down. It runs `claude --resume <id>` in the
+  conversation's own directory; change it with `-restore-command` (for example
+  `-restore-command "claude --dangerously-skip-permissions --resume"`), or pass
+  `-restore-command ""` to hide the button.
+- Ctrl+V pastes the viewer's clipboard, as in any desktop terminal.
 - Drag a finger down on the terminal to scroll back through its history (tmux
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - Drag the mouse over text to copy it to the system clipboard: tmux copies on

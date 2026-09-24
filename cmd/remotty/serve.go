@@ -24,7 +24,7 @@ import (
 
 // serveFlags is everything `remotty serve` (and `remotty install`) accepts.
 type serveFlags struct {
-	addr, origins, socket, session string
+	addr, origins, socket, session, restore string
 }
 
 func parseServeFlags(args []string) (serveFlags, error) {
@@ -34,6 +34,7 @@ func parseServeFlags(args []string) (serveFlags, error) {
 	fs.StringVar(&f.origins, "origin", "", "comma-separated `origins` the UI is served from (default: this machine's tailnet name, plus localhost)")
 	fs.StringVar(&f.socket, "tmux-socket", "", "tmux socket path (default: tmux's own default socket)")
 	fs.StringVar(&f.session, "session", "main", "tmux session whose windows become tabs")
+	fs.StringVar(&f.restore, "restore-command", "claude --resume", "`command` the Restore button runs, plus a conversation id, for each Claude Code conversation that stopped; empty hides the button")
 	return f, fs.Parse(args)
 }
 
@@ -58,7 +59,12 @@ func serve(args []string, store access.Store) error {
 	saveURL(store.Dir, allowed[0])
 	uploadDir := uploads.Dir(filepath.Join(store.Dir, "uploads"))
 	guard := access.Guard{Store: store, Origins: allowed}
-	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm, uploadDir)), ReadHeaderTimeout: 10 * time.Second}
+	var restorer *sessions.Restorer
+	if f.restore != "" {
+		home, _ := os.UserHomeDir()
+		restorer = sessions.NewRestorer(tm, filepath.Join(home, ".claude"), f.restore)
+	}
+	srv := &http.Server{Handler: guard.Wrap(routes(guard, tm, uploadDir, restorer)), ReadHeaderTimeout: 10 * time.Second}
 	// Scripts and tests read this line to learn the port when -addr ends in :0.
 	fmt.Printf("remotty listening on http://%s (origins: %s)\n", ln.Addr(), strings.Join(allowed, ", "))
 	fmt.Printf("Open %s on your device, then run `remotty pair` here.\n", allowed[0])
@@ -84,13 +90,16 @@ func resolveOrigins(flagValue string, port int) ([]string, error) {
 	return allowed, nil
 }
 
-func routes(guard access.Guard, tm sessions.Tmux, uploadDir uploads.Dir) http.Handler {
+func routes(guard access.Guard, tm sessions.Tmux, uploadDir uploads.Dir, restorer *sessions.Restorer) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("POST /api/pair", guard.HandlePair)
 	mux.HandleFunc("GET /api/me", guard.RequireDevice(access.HandleMe))
 	tm.Routes(mux, guard.RequireDevice, attach(guard.OriginHosts()))
 	uploadDir.Routes(mux, guard.RequireDevice)
+	if restorer != nil {
+		restorer.Routes(mux, guard.RequireDevice)
+	}
 	return mux
 }
 

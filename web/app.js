@@ -35,6 +35,7 @@ async function main() {
       if (e instanceof Unauthorized) location.reload(); // revoked: back to pairing
       else setStatus(e.message);
     },
+    onStatus: setStatus,
     focusTerminal: () => terminal.focus(),
   });
   document.addEventListener('keydown', (e) => {

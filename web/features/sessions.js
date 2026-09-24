@@ -6,7 +6,7 @@ import { api } from './api.js';
 
 const POLL_MS = 2000;
 
-export function createSessions({ onSelect, onError, focusTerminal }) {
+export function createSessions({ onSelect, onError, onStatus = () => {}, focusTerminal }) {
   const list = document.getElementById('tab-list');
   const find = document.getElementById('find');
   let windows = [];
@@ -186,6 +186,23 @@ export function createSessions({ onSelect, onError, focusTerminal }) {
     render();
   });
   document.getElementById('new-tab').addEventListener('pointerdown', (e) => e.preventDefault());
+
+  // Restore: after a crash, reopen every Claude Code conversation that stopped.
+  // The host answers 404 when it runs without -restore-command; then the button goes.
+  const restoreButton = document.getElementById('restore');
+  restoreButton.addEventListener('click', async () => {
+    restoreButton.disabled = true;
+    try {
+      const opened = await api('POST', '/api/restore');
+      onStatus(opened.length ? `Reopened ${opened.length}: ${opened.map((c) => c.title || c.id.slice(0, 8)).join(', ')}` : 'Nothing to reopen');
+      await refresh();
+    } catch (e) {
+      if (e.message.includes('404')) restoreButton.hidden = true;
+      onError(e);
+    } finally {
+      restoreButton.disabled = false;
+    }
+  });
 
   return {
     async start() {

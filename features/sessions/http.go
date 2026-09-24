@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 )
 
 // Routes registers the window API on mux. wrap applies authentication to each
@@ -54,6 +55,19 @@ func (t Tmux) handleClose(w http.ResponseWriter, r *http.Request) {
 	if respond(w, t.Close(r.PathValue("id"))) {
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// RestoreWindow is how far back a conversation counts as "was running".
+const RestoreWindow = 2 * time.Hour
+
+// Routes registers POST /api/restore, which reopens stopped agents.
+func (r *Restorer) Routes(mux *http.ServeMux, wrap func(http.HandlerFunc) http.HandlerFunc) {
+	mux.HandleFunc("POST /api/restore", wrap(func(w http.ResponseWriter, req *http.Request) {
+		opened, err := r.Restore(RestoreWindow)
+		if respond(w, err) {
+			writeJSON(w, http.StatusOK, opened)
+		}
+	}))
 }
 
 // respond maps domain errors to HTTP. It returns false when it wrote an error.

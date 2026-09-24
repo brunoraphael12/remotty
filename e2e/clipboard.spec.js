@@ -54,3 +54,15 @@ test('a program can set the clipboard but never read it through OSC 52', async (
   await typeInTerminal(page, `${osc(Buffer.from('via-osc').toString('base64'))}\n`);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('via-osc');
 });
+
+// Ctrl+V is paste, as in every desktop terminal. xterm.js would send it as the
+// ^V byte instead, and Claude Code reads ^V as "paste an image from the host".
+test('Ctrl+V pastes the clipboard text into the program', async ({ page, host }) => {
+  await pair(page, host);
+  await page.evaluate(() => navigator.clipboard.writeText('colado-ok'));
+  await typeInTerminal(page, 'read -r x; echo "got:[$x]"\n');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Control+V');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => host.capture(host.windows()[0].id)).toMatch(/^got:\[colado-ok\]$/m);
+});

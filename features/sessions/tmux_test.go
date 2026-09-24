@@ -81,7 +81,7 @@ func TestRejectsBadWindowIDs(t *testing.T) {
 }
 
 func TestRejectsBadNames(t *testing.T) {
-	tm := Tmux{Socket: "unused", Session: "main"}
+	tm := newTestTmux(t) // the legitimate name below really creates a window
 	for _, name := range []string{"esc\x1b[31m", "nl\n", strings.Repeat("x", 65)} {
 		if _, err := tm.Create(name); err != ErrBadName {
 			t.Errorf("Create(%q) = %v, want ErrBadName", name, err)
