@@ -92,6 +92,14 @@ test('the sidebar says how to move between agents', async ({ page, host }) => {
   await pair(page, host);
   await expect(page.locator('#tabs-hint')).toBeVisible();
   await expect(page.locator('#tabs-hint')).toContainText('Alt');
+  // One shortcut per line, each on a single line: a hint that wraps mid-phrase
+  // is hard to read at a glance.
+  const lines = page.locator('#tabs-hint li');
+  await expect(lines).toHaveText([/open/, /next/, /reorder/]);
+  for (const line of await lines.all()) {
+    const { height, lineHeight } = await line.evaluate((e) => ({ height: e.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(e).lineHeight) }));
+    expect(height).toBeLessThan(lineHeight * 1.6);
+  }
 });
 
 // Chips must not cost the names: with the sidebar at its normal width, a
