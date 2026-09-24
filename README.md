@@ -61,9 +61,11 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - The left column lists every window of the tmux session `main`. A red dot is a
   bell, amber means the window has been silent for a while (an agent waiting on
   you, if you set `monitor-silence` in tmux), blue is fresh output.
-- **Keyboard first.** `Ctrl+Shift+K` opens the finder above the list: type to
-  filter by name (or a window number), arrows to move, `Enter` to open, and
-  you are typing in that agent. If nothing is named exactly that, the last row
+- **Keyboard first.** `Alt+1`…`Alt+9` open agents 1 to 9 (each tab shows its
+  chip), `Alt+↓` / `Alt+↑` go to the next or previous one. `Ctrl+Shift+K`
+  opens the finder above the list: type to filter by name (or a window
+  number), arrows to move, `Enter` to open, and you are typing in that agent.
+  None of these keys ever reach the shell. If nothing is named exactly that, the last row
   creates a new agent with the name you typed; `Enter` on an empty finder
   creates an unnamed one. `Esc` goes back to the terminal. `+` opens the finder.
 - Double-tap a tab to rename it; `×` closes it.

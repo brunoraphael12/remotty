@@ -7,7 +7,7 @@
   --accent: #f5a524;
   --bell: #ff5d5d;
   --activity: #4cc2ff;
-  --tab-w: 13rem;
+  --tab-w: 16rem; /* room for a name, its Alt chip and the close button */
   color-scheme: dark;
 }
 
@@ -54,11 +54,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
 #tabs { grid-area: tabs; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
 #tab-list { list-style: none; margin: 0; padding: .3rem; overflow-y: auto; flex: 1; }
-#tab-list li { display: flex; align-items: center; gap: .4rem; padding: .55rem .6rem; border-radius: 6px; cursor: pointer; }
+#tab-list li { display: flex; align-items: center; gap: .35rem; padding: .55rem .4rem .55rem .6rem; border-radius: 6px; cursor: pointer; }
 #tab-list li[aria-current="true"] { background: var(--panel); box-shadow: inset 3px 0 var(--accent); }
 #tab-list .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tab-list .index { color: var(--muted); font-variant-numeric: tabular-nums; }
 #tab-list .dot { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
+#tab-list [data-state="idle"] .dot { display: none; } /* no state, no reserved space */
 #tab-list [data-state="bell"] .dot { background: var(--bell); }
 #tab-list [data-state="waiting"] .dot { background: var(--accent); }
 #tab-list [data-state="activity"] .dot { background: var(--activity); }
@@ -78,11 +79,27 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 #status { position: fixed; right: .6rem; bottom: 3.4rem; margin: 0; padding: .3rem .6rem; border-radius: 6px; background: var(--panel); color: var(--muted); }
 #status:empty { display: none; }
 
-/* Find field and keyboard highlight in the agent list. */
+/* Find field and keyboard highlight in the agent list. The shortcut chip sits
+   inside the field, in right padding the text never reaches, so neither the
+   hint nor the chip is ever clipped. */
+#find-box { position: relative; margin: .3rem; }
 #find {
-  margin: .3rem; padding: .5rem .6rem; font: inherit; color: var(--text);
+  width: 100%; padding: .5rem 5.4rem .5rem .6rem; font: inherit; color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
 }
+#find::-webkit-search-cancel-button { display: none; } /* Esc clears it; the x would sit on the chip */
+#find-key { position: absolute; right: .45rem; top: 50%; transform: translateY(-50%); pointer-events: none; }
+#find:focus + #find-key { opacity: .45; }
+
+kbd {
+  font: 600 .7rem/1 ui-monospace, "Cascadia Mono", Menlo, monospace; letter-spacing: .02em;
+  padding: .2rem .35rem; border-radius: 4px; white-space: nowrap;
+  color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-bottom-width: 2px;
+}
+#tab-list .hotkey { flex: none; font-size: .62rem; padding: .15rem .3rem; }
+#tab-list li:not(:hover):not([aria-current="true"]) .hotkey { opacity: .6; }
+#tabs-hint { margin: 0; padding: .35rem .6rem .1rem; color: var(--muted); font-size: .75rem; }
+#tabs-hint kbd { font-size: .65rem; padding: .1rem .25rem; }
 #tab-list li.highlighted { outline: 2px solid var(--accent); outline-offset: -2px; }
 #tab-list li.create { color: var(--muted); font-style: italic; white-space: nowrap; }
 
@@ -99,9 +116,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   #tab-list li[aria-current="true"] { box-shadow: inset 0 -3px var(--accent); }
   #tab-list .close { display: none; } /* too small to hit next to a name; close from the tab's own shell */
   /* The finder is an icon-sized button until tapped, then takes the whole row. */
-  #find { flex: none; width: 2.9rem; min-height: 2.75rem; padding-left: 2.4rem; background: var(--bg) url(/search.svg) no-repeat .8rem 50% / 1.2rem; }
+  #find-box { flex: none; margin: .3rem; }
+  #find-box:has(#find:focus) { flex: 1; }
+  #find-key, #tabs-hint, #tab-list .hotkey { display: none; }
+  #find { width: 2.9rem; min-height: 2.75rem; padding: .5rem .6rem .5rem 2.4rem; background: var(--bg) url(/search.svg) no-repeat .8rem 50% / 1.2rem; }
   #find::placeholder { color: transparent; }
-  #find:focus { width: calc(100% - .6rem); }
+  #find:focus { width: 100%; }
   #find:focus::placeholder { color: var(--muted); }
   #tabs:has(#find:focus) #tab-list { display: none; }
   #tabs:has(#find:focus:not(:placeholder-shown)) { flex-wrap: wrap; }

@@ -96,7 +96,7 @@ test('a visible + creates an agent by touch alone', async ({ page, host }) => {
   expect(box.width).toBeGreaterThanOrEqual(40);
   await plus.tap();
   await expect(page.locator('#find')).toBeFocused();
-  await expect(page.locator('#find')).toHaveAttribute('placeholder', /new agent/i);
+  await expect(page.locator('#find')).toHaveAttribute('placeholder', /create/i); // says it also creates
   expect(await page.locator('#find').evaluate((e) => getComputedStyle(e, '::placeholder').color)).not.toBe('rgba(0, 0, 0, 0)');
   await page.keyboard.type('pelo-celular');
   await page.locator('#tab-list li.create').tap(); // tap the row, not Enter

@@ -16,10 +16,16 @@ async function main() {
     return;
   }
   document.getElementById('app').hidden = false;
-  // App shortcuts. xterm sends no bytes for Ctrl+Shift+<letter>, so they never
-  // reach the shell; the e2e test "the shortcut never reaches the terminal" checks it.
-  const shortcuts = { 'Ctrl+Shift+K': () => sessions.focusFind() };
-  const terminal = createTerminal({ onStatus: setStatus });
+  // App shortcuts. The terminal is told which keys are ours so it never sends
+  // them to the shell (see attachCustomKeyEventHandler in terminal.js).
+  const shortcuts = {
+    'Ctrl+Shift+K': () => sessions.focusFind(),
+    'Alt+ArrowDown': () => sessions.step(1),
+    'Alt+ArrowUp': () => sessions.step(-1),
+  };
+  for (let n = 1; n <= 9; n++) shortcuts[`Alt+${n}`] = () => sessions.openIndex(n);
+  const isShortcut = (e) => Boolean(shortcuts[shortcutOf(e)]);
+  const terminal = createTerminal({ onStatus: setStatus, isShortcut });
   const sessions = createSessions({
     onSelect: (id) => {
       document.getElementById('empty').hidden = Boolean(id);

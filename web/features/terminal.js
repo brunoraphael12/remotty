@@ -8,7 +8,7 @@ import { wireUploads } from './uploads.js';
 // that lost signal) is not hammered. Reset on every successful connection.
 const RETRY_MS = [500, 1000, 2000, 4000, 8000];
 
-export function createTerminal({ onStatus }) {
+export function createTerminal({ onStatus, isShortcut = () => false }) {
   const term = new Terminal({
     cursorBlink: true,
     fontFamily: 'ui-monospace, "Cascadia Mono", Menlo, monospace',
@@ -80,6 +80,10 @@ export function createTerminal({ onStatus }) {
     document.querySelector('[data-mod="ctrl"]').setAttribute('aria-pressed', String(on));
   }
 
+  // App shortcuts win over the terminal. xterm sends ESC-prefixed bytes for
+  // Alt+2 or Alt+Down, which the shell would act on; returning false keeps them
+  // off the wire and lets the event reach the page's own keydown handler.
+  term.attachCustomKeyEventHandler((e) => !isShortcut(e));
   term.onData(send);
   term.onBinary((data) => sendBytes(Uint8Array.from(data, (c) => c.charCodeAt(0))));
   term.onResize(sendResize);

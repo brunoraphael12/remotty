@@ -83,13 +83,17 @@ export function createSessions({ onSelect, onError, focusTerminal }) {
     const name = document.createElement('span');
     name.className = 'name';
     name.textContent = w.name; // textContent: window names are set by programs inside the terminal
+    li.dataset.index = w.index;
+    const hotkey = document.createElement('kbd');
+    hotkey.className = 'hotkey';
+    if (w.index >= 1 && w.index <= 9) hotkey.textContent = `Alt ${w.index}`;
     const close = document.createElement('button');
     close.className = 'close';
     close.type = 'button';
     close.textContent = '×';
     close.setAttribute('aria-label', `Close ${w.name}`);
 
-    li.append(index, dot, name, close);
+    li.append(index, dot, name, ...(hotkey.textContent ? [hotkey] : []), close);
     li.addEventListener('click', (e) => (e.target === close ? remove(w) : open(w.id)));
     li.addEventListener('dblclick', () => rename(w));
     return li;
@@ -191,6 +195,17 @@ export function createSessions({ onSelect, onError, focusTerminal }) {
       if (first) select(first.id);
     },
     stop: () => clearInterval(timer),
+    // Alt+N: the window whose tmux index is N, like tmux's own prefix+N.
+    openIndex(n) {
+      const w = windows.find((x) => x.index === n);
+      if (w) open(w.id);
+    },
+    // Alt+Down / Alt+Up: next or previous agent, wrapping around.
+    step(delta) {
+      if (!windows.length) return;
+      const at = windows.findIndex((w) => w.id === current);
+      open(windows[(at + delta + windows.length) % windows.length].id);
+    },
     focusFind() {
       find.focus();
       find.select();

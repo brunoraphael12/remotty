@@ -25,9 +25,13 @@
 
   <div id="app" hidden>
     <nav id="tabs" aria-label="Agents">
-      <input id="find" type="search" placeholder="Find, or name a new agent" aria-label="Find or create an agent" title="Ctrl+Shift+K"
-             aria-controls="tab-list" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+      <div id="find-box">
+        <input id="find" type="search" placeholder="Find or create" aria-label="Find or create an agent" aria-keyshortcuts="Control+Shift+K"
+               aria-controls="tab-list" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+        <kbd id="find-key" aria-hidden="true">Ctrl ⇧ K</kbd>
+      </div>
       <ul id="tab-list"></ul>
+      <p id="tabs-hint"><kbd>Alt 1–9</kbd> open · <kbd>Alt ↑↓</kbd> next</p>
       <button id="new-tab" type="button" aria-label="New agent">+</button>
     </nav>
     <section id="stage">
