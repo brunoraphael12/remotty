@@ -152,6 +152,10 @@ func (t Tmux) AttachCommand(id string) ([]string, error) {
 		"new-session", "-t", "=" + t.Session,
 		";", "set-option", "destroy-unattached", "on",
 		";", "set-option", "status", "off",
+		// Claude Code, vim and friends copy by printing OSC 52 themselves. The
+		// tmux default ("external") drops that; "on" forwards it to the page,
+		// which only ever writes the clipboard. Server-wide: it is one option.
+		";", "set-option", "-s", "set-clipboard", "on",
 		";", "select-window", "-t", id,
 	}, nil
 }

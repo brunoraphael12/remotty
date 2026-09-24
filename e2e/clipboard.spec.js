@@ -22,6 +22,19 @@ test('dragging over output copies it to the system clipboard', async ({ page, ho
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/^copie-42/);
 });
 
+// Claude Code (and vim, helix...) copy a selection by printing OSC 52 itself.
+// tmux's default set-clipboard is "external", which drops a program's own
+// OSC 52; remotty must turn it on, or those copies never reach the page.
+test('a program copying with OSC 52 reaches the system clipboard', async ({ page, host }) => {
+  host.tmux('set-option', '-s', 'set-clipboard', 'external'); // the tmux default, stated
+  await pair(page, host);
+  await page.evaluate(() => navigator.clipboard.writeText('antes'));
+  const b64 = Buffer.from('copiado-pelo-app').toString('base64');
+  await typeInTerminal(page, `printf '\\033]52;c;${b64}\\a'; echo fim-copia\n`);
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('fim-copia'); // it ran
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('copiado-pelo-app');
+});
+
 // OSC 52 can also ask to READ the clipboard ("?"). Answering would hand the
 // user's clipboard to whatever printed the sequence, so the page never does.
 // tmux swallows a program's own OSC 52, so the sequences are sent through
