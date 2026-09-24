@@ -14,6 +14,7 @@ func (t Tmux) Routes(mux *http.ServeMux, wrap func(http.HandlerFunc) http.Handle
 	mux.HandleFunc("POST /api/windows", wrap(t.handleCreate))
 	mux.HandleFunc("PATCH /api/windows/{id}", wrap(t.handleRename))
 	mux.HandleFunc("DELETE /api/windows/{id}", wrap(t.handleClose))
+	mux.HandleFunc("POST /api/windows/{id}/move", wrap(t.handleMove))
 	mux.HandleFunc("GET /api/windows/{id}/tty", wrap(func(w http.ResponseWriter, r *http.Request) {
 		argv, err := t.AttachCommand(r.PathValue("id"))
 		if respond(w, err) {
@@ -47,6 +48,18 @@ func (t Tmux) handleCreate(w http.ResponseWriter, r *http.Request) {
 func (t Tmux) handleRename(w http.ResponseWriter, r *http.Request) {
 	var req nameBody
 	if decode(w, r, &req) && respond(w, t.Rename(r.PathValue("id"), req.Name)) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+type moveBody struct {
+	Target string `json:"target"`
+	After  bool   `json:"after"`
+}
+
+func (t Tmux) handleMove(w http.ResponseWriter, r *http.Request) {
+	var req moveBody
+	if decode(w, r, &req) && respond(w, t.Move(r.PathValue("id"), req.Target, req.After)) {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

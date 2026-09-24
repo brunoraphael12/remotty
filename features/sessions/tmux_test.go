@@ -3,6 +3,7 @@ package sessions
 import (
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -143,4 +144,62 @@ func TestRejectsNamesTmuxWouldMisread(t *testing.T) {
 	if _, err := tm.Create("a-b;c"); err != nil {
 		t.Errorf("anchor: an inner dash or semicolon is fine: %v", err)
 	}
+}
+
+func TestMovePutsAWindowBeforeOrAfterAnotherAndRenumbers(t *testing.T) {
+	tm := newTestTmux(t)
+	for _, n := range []string{"b", "c", "d"} {
+		if _, err := tm.Create(n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tm.Rename(mustList(t, tm)[0].ID, "a")
+	id := func(name string) string {
+		for _, w := range mustList(t, tm) {
+			if w.Name == name {
+				return w.ID
+			}
+		}
+		t.Fatalf("no window %q", name)
+		return ""
+	}
+	// Names in index order, with indexes relative to the first: the base index
+	// comes from the user's tmux.conf, the gaps would come from Move.
+	order := func() string {
+		var s []string
+		list := mustList(t, tm)
+		for _, w := range list {
+			s = append(s, strconv.Itoa(w.Index-list[0].Index)+w.Name)
+		}
+		return strings.Join(s, " ")
+	}
+	if err := tm.Move(id("a"), id("d"), true); err != nil { // first to last
+		t.Fatal(err)
+	}
+	if got := order(); got != "0b 1c 2d 3a" {
+		t.Fatalf("after moving a after d: %q, want %q", got, "0b 1c 2d 3a")
+	}
+	if err := tm.Move(id("c"), id("b"), false); err != nil { // row 2 to row 1
+		t.Fatal(err)
+	}
+	if got := order(); got != "0c 1b 2d 3a" {
+		t.Fatalf("after moving c before b: %q, want %q", got, "0c 1b 2d 3a")
+	}
+	for _, bad := range [][2]string{{"@1;kill-server", id("a")}, {id("a"), "main"}} {
+		if err := tm.Move(bad[0], bad[1], true); err != ErrBadWindowID {
+			t.Errorf("Move(%q, %q) = %v, want ErrBadWindowID", bad[0], bad[1], err)
+		}
+	}
+	if err := tm.Move(id("a"), "@999", true); err != ErrNoWindow {
+		t.Errorf("Move to a missing window = %v, want ErrNoWindow", err)
+	}
+}
+
+func mustList(t *testing.T, tm Tmux) []Window {
+	t.Helper()
+	w, err := tm.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w
 }

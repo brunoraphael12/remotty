@@ -107,6 +107,10 @@ kbd {
 #tabs-hint { margin: 0; padding: .35rem .6rem .1rem; color: var(--muted); font-size: .75rem; }
 #tabs-hint kbd { font-size: .65rem; padding: .1rem .25rem; }
 #tab-list li.highlighted { outline: 2px solid var(--accent); outline-offset: -2px; }
+#tab-list li.dragging { opacity: .45; }
+#tab-list li { touch-action: pan-x pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#tab-list li.drop-before { box-shadow: inset 0 3px var(--accent); }
+#tab-list li.drop-after { box-shadow: inset 0 -3px var(--accent); }
 #tab-list li.create { color: var(--muted); font-style: italic; white-space: nowrap; }
 
 /* Portrait or narrow (tablet upright, phone, split screen): width is scarce and
@@ -120,6 +124,8 @@ kbd {
   #tab-list { display: flex; gap: .2rem; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: .25rem; }
   #tab-list li { flex: none; max-width: 9rem; padding: .45rem .55rem; }
   #tab-list li[aria-current="true"] { box-shadow: inset 0 -3px var(--accent); }
+  #tab-list li.drop-before { box-shadow: inset 3px 0 var(--accent); }
+  #tab-list li.drop-after { box-shadow: inset -3px 0 var(--accent); }
   #tab-list .close { display: none; } /* too small to hit next to a name; close from the tab's own shell */
   /* The finder is an icon-sized button until tapped, then takes the whole row. */
   #find-box { flex: none; margin: .3rem; }

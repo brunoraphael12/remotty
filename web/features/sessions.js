@@ -94,9 +94,101 @@ export function createSessions({ onSelect, onError, onStatus = () => {}, focusTe
     close.setAttribute('aria-label', `Close ${w.name}`);
 
     li.append(index, dot, name, ...(hotkey.textContent ? [hotkey] : []), close);
-    li.addEventListener('click', (e) => (e.target === close ? remove(w) : open(w.id)));
+    li.addEventListener('click', (e) => {
+      if (dragged) return; // the pointerup that ends a drag is not a tap
+      if (e.target === close) remove(w);
+      else open(w.id);
+    });
     li.addEventListener('dblclick', () => rename(w));
     return li;
+  }
+
+  // Drag to reorder. Pointer events cover mouse and finger alike. A mouse drag
+  // starts after a few pixels of travel, so a click still opens. A finger has to
+  // hold still first (HOLD_MS): otherwise every swipe that scrolls the tab strip
+  // or the list would drag a tab. The order lives in tmux (window indexes), so a
+  // drop moves the window on the host and every client sees the new order.
+  let drag = null;
+  let dragged = false;
+  const DRAG_PX = 8;
+  const HOLD_MS = 350;
+  const horizontal = () => getComputedStyle(list).display === 'flex';
+
+  list.addEventListener('pointerdown', (e) => {
+    const li = e.target.closest('li[data-id]');
+    if (!li || e.button !== 0 || e.target.closest('.close') || query()) return;
+    drag = { li, x: e.clientX, y: e.clientY, on: false, pointerId: e.pointerId };
+    dragged = false;
+    if (e.pointerType === 'touch') drag.hold = setTimeout(() => startDrag(), HOLD_MS);
+  });
+  list.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const travel = Math.hypot(e.clientX - drag.x, e.clientY - drag.y);
+    if (!drag.on) {
+      if (e.pointerType === 'touch') {
+        if (travel > DRAG_PX) cancelDrag(); // moved before the hold: it is a scroll
+        return;
+      }
+      if (travel < DRAG_PX) return;
+      startDrag();
+    }
+    e.preventDefault();
+    markDrop(e);
+  });
+  // While a finger drag is on, the browser must not scroll the list instead.
+  list.addEventListener('touchmove', (e) => drag?.on && e.preventDefault(), { passive: false });
+
+  function startDrag() {
+    drag.on = true;
+    dragged = true;
+    drag.li.setPointerCapture?.(drag.pointerId);
+    drag.li.classList.add('dragging');
+    clearInterval(timer); // a poll would redraw the list under the pointer
+  }
+
+  function cancelDrag() {
+    clearTimeout(drag?.hold);
+    drag = null;
+  }
+
+  list.addEventListener('pointerup', finishDrag);
+  list.addEventListener('pointercancel', () => finishDrag(null));
+  list.addEventListener('dragstart', (e) => e.preventDefault()); // no native ghost image
+
+  // The row under the pointer, and whether the drop lands after its middle.
+  function dropSpot(e, dragging = drag.li) {
+    const over = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches?.('li[data-id]') && el !== dragging);
+    if (!over) return null;
+    const r = over.getBoundingClientRect();
+    const after = horizontal() ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2;
+    return { over, after };
+  }
+
+  function markDrop(e) {
+    list.querySelectorAll('.drop-before, .drop-after').forEach((el) => el.classList.remove('drop-before', 'drop-after'));
+    const spot = dropSpot(e);
+    spot?.over.classList.add(spot.after ? 'drop-after' : 'drop-before');
+  }
+
+  async function finishDrag(e) {
+    const d = drag;
+    cancelDrag();
+    if (!d?.on) return;
+    const spot = e && dropSpot(e, d.li);
+    d.li.classList.remove('dragging');
+    timer = setInterval(refresh, POLL_MS);
+    if (spot) await move(d.li.dataset.id, spot.over.dataset.id, spot.after);
+    else render();
+    setTimeout(() => (dragged = false)); // after the click this pointerup produces
+  }
+
+  async function move(id, target, after) {
+    try {
+      await api('POST', `/api/windows/${encodeURIComponent(id)}/move`, { target, after });
+    } catch (e) {
+      onError(e);
+    }
+    await refresh();
   }
 
   function select(id) {
@@ -216,6 +308,12 @@ export function createSessions({ onSelect, onError, onStatus = () => {}, focusTe
     openIndex(n) {
       const w = windows.find((x) => x.index === n);
       if (w) open(w.id);
+    },
+    // Alt+Shift+Up / Alt+Shift+Down: move the open agent one place, like a drag.
+    shift(delta) {
+      const at = windows.findIndex((w) => w.id === current);
+      const neighbour = windows[at + delta];
+      if (at >= 0 && neighbour) move(current, neighbour.id, delta > 0);
     },
     // Alt+Down / Alt+Up: next or previous agent, wrapping around.
     step(delta) {

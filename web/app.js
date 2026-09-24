@@ -22,6 +22,8 @@ async function main() {
     'Ctrl+Shift+K': () => sessions.focusFind(),
     'Alt+ArrowDown': () => sessions.step(1),
     'Alt+ArrowUp': () => sessions.step(-1),
+    'Alt+Shift+ArrowDown': () => sessions.shift(1),
+    'Alt+Shift+ArrowUp': () => sessions.shift(-1),
   };
   for (let n = 1; n <= 9; n++) shortcuts[`Alt+${n}`] = () => sessions.openIndex(n);
   const isShortcut = (e) => Boolean(shortcuts[shortcutOf(e)]);

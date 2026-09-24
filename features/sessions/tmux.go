@@ -121,6 +121,29 @@ func (t Tmux) Rename(id, name string) error {
 	return err
 }
 
+// Move puts window id right before (or after) window target, then closes the
+// gaps so indexes stay 1..N: the Alt+N hotkeys follow the index, and so does
+// every other client (ssh, mosh) of the same session.
+func (t Tmux) Move(id, target string, after bool) error {
+	if !windowIDPattern.MatchString(id) || !windowIDPattern.MatchString(target) {
+		return ErrBadWindowID
+	}
+	for _, w := range []string{id, target} {
+		if out, _ := t.run("display-message", "-p", "-t", w, "#{window_id}"); strings.TrimSpace(out) != w {
+			return ErrNoWindow
+		}
+	}
+	if id == target {
+		return nil
+	}
+	side := "-b"
+	if after {
+		side = "-a"
+	}
+	_, err := t.run("move-window", side, "-s", id, "-t", target, ";", "move-window", "-r", "-t", "="+t.Session)
+	return err
+}
+
 // Close kills a window and whatever runs in it.
 func (t Tmux) Close(id string) error {
 	if !windowIDPattern.MatchString(id) {

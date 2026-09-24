@@ -82,6 +82,9 @@ remotty revoke ID   # unpair; its open terminals close within a second
   `-restore-command "claude --dangerously-skip-permissions --resume"`), or pass
   `-restore-command ""` to hide the button.
 - Ctrl+V pastes the viewer's clipboard, as in any desktop terminal.
+- Drag a tab to reorder the agents (on a touch screen, hold it first so a swipe
+  still scrolls), or move the open one with Alt+Shift+↑/↓. The order is tmux's
+  own window order, so ssh and every other device see it and Alt+1–9 follow it.
 - Drag a finger down on the terminal to scroll back through its history (tmux
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
 - Drag the mouse over text to copy it to the system clipboard: tmux copies on
