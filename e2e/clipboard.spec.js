@@ -1,0 +1,43 @@
+import { test, expect, pair, typeInTerminal } from './fixtures.js';
+
+test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+// With tmux mouse on, a drag is tmux's copy mode, not an xterm selection. On
+// release tmux copies and sends the text out as OSC 52; the page must honour it.
+test('dragging over output copies it to the system clipboard', async ({ page, host }) => {
+  host.tmux('set-option', '-g', 'mouse', 'on');
+  await pair(page, host);
+  await page.evaluate(() => navigator.clipboard.writeText('antes'));
+  await typeInTerminal(page, 'clear; echo copie-$((6*7))-agora\n');
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('copie-42-agora');
+
+  const row = page.locator('#terminal .xterm-rows > div', { hasText: /^copie-42-agora/ });
+  const box = await row.boundingBox();
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 60, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.move(box.x + 160, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/^copie-42/);
+});
+
+// OSC 52 can also ask to READ the clipboard ("?"). Answering would hand the
+// user's clipboard to whatever printed the sequence, so the page never does.
+// tmux swallows a program's own OSC 52, so the sequences are sent through
+// tmux passthrough to reach the page at all; the SET proves they do.
+test('a program can set the clipboard but never read it through OSC 52', async ({ page, host }) => {
+  host.tmux('set-option', '-g', 'allow-passthrough', 'on');
+  await pair(page, host);
+  await page.evaluate(() => navigator.clipboard.writeText('segredo-do-usuario'));
+  const osc = (payload) => `printf '\\033Ptmux;\\033\\033]52;c;${payload}\\a\\033\\\\'`;
+  await typeInTerminal(page, `${osc('?')}; echo fim-osc\n`);
+  await expect(page.locator('#terminal .xterm-rows')).toContainText('fim-osc');
+  await typeInTerminal(page, 'echo depois\n');
+  await expect.poll(() => host.capture(host.windows()[0].id)).toMatch(/^depois$/m); // the shell ran on
+  expect(host.capture(host.windows()[0].id)).not.toContain('segredo'); // nothing typed back
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('segredo-do-usuario');
+  // Anchor: the same path does reach the page, so the silence above is a refusal.
+  await typeInTerminal(page, `${osc(Buffer.from('via-osc').toString('base64'))}\n`);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('via-osc');
+});

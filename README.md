@@ -77,6 +77,9 @@ remotty revoke ID   # unpair; its open terminals close within a second
   reads the audio is up to whatever runs in the terminal.
 - Drag a finger down on the terminal to scroll back through its history (tmux
   copy mode; `q` leaves it). This needs `set -g mouse on` in `~/.tmux.conf`.
+- Drag the mouse over text to copy it to the system clipboard: tmux copies on
+  release and sends it out as OSC 52 (`set-clipboard` must not be `off`). The
+  page only ever writes the clipboard; an OSC 52 read request is ignored.
 - The bottom bar has the keys a tablet keyboard lacks: Esc, Tab, Enter, a sticky Ctrl,
   arrows, ^C and paste.
 - On a phone held upright the page fits the screen exactly: the agents become a

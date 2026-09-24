@@ -19,6 +19,7 @@ export function createTerminal({ onStatus, isShortcut = () => false }) {
   const fit = new FitAddon();
   term.loadAddon(fit);
   term.open(document.getElementById('terminal'));
+  wireClipboard(term);
 
   let socket = null;
   let windowId = null;
@@ -127,6 +128,21 @@ function wireKeyBar({ send, toggleCtrl, focus, onStatus }) {
 // sequences tmux enters copy mode on, so we synthesise wheel events: one per
 // line of travel. Needs `set -g mouse on` in tmux, like wheel scrolling anywhere.
 const LINE_PX = 18;
+
+// With tmux mouse on, a drag selects in tmux copy mode, and tmux hands the
+// copied text out as OSC 52 ("52;c;<base64>"). Write-only on purpose: a "?"
+// query would let any program read the user's clipboard, so it is swallowed.
+function wireClipboard(term) {
+  term.parser.registerOscHandler(52, (data) => {
+    const b64 = data.slice(data.indexOf(';') + 1);
+    if (b64 === '?') return true;
+    try {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      navigator.clipboard?.writeText(new TextDecoder().decode(bytes)).catch(() => {});
+    } catch {} // malformed base64: ignore, never echo anything back
+    return true;
+  });
+}
 
 function wireTouchScroll(el, term) {
   let lastY = null;
