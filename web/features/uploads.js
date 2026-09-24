@@ -4,11 +4,48 @@ export function wireUploads({ send, onStatus }) {
   const input = document.getElementById('attach-input');
   document.querySelector('[data-action="attach"]').addEventListener('click', () => input.click());
   input.addEventListener('change', async () => {
-    const file = input.files[0];
-    input.value = ''; // the same file can be picked again
-    if (file) await attach(file, file.name, { send, onStatus });
+    const files = [...input.files];
+    input.value = ''; // the same files can be picked again
+    await attachAll(files, { send, onStatus });
   });
+  wireDrop({ send, onStatus });
   wireRecorder(document.querySelector('[data-action="record"]'), { send, onStatus });
+}
+
+// One at a time, so the paths reach the prompt in the order they were chosen.
+async function attachAll(files, deps) {
+  for (const file of files) await attach(file, file.name, deps);
+}
+
+// Files dragged from the desktop and dropped anywhere on the page attach like
+// the picker. Only drags that carry files count: text dragged inside the page
+// keeps its normal behaviour. The counter survives dragenter/dragleave firing
+// on every child the pointer crosses.
+function wireDrop(deps) {
+  let depth = 0;
+  const hasFiles = (e) => e.dataTransfer?.types.includes('Files');
+  const showing = (on) => document.body.classList.toggle('dropping', on);
+  document.addEventListener('dragenter', (e) => {
+    if (!hasFiles(e)) return;
+    depth++;
+    showing(true);
+  });
+  document.addEventListener('dragleave', (e) => {
+    if (hasFiles(e) && --depth <= 0) (depth = 0), showing(false);
+  });
+  document.addEventListener('dragover', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); // without it the browser opens the file instead of dropping
+    e.dataTransfer.dropEffect = 'copy';
+    showing(true);
+  });
+  document.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    showing(false);
+    attachAll([...e.dataTransfer.files], deps);
+  });
 }
 
 // upload saves the file on the host and returns its path, or null on failure.

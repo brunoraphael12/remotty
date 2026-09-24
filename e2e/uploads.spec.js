@@ -29,3 +29,49 @@ test('an unpaired browser cannot upload', async ({ page, host }) => {
   const paired = await page.evaluate(async () => (await fetch('/api/uploads?name=x.png', { method: 'POST', body: 'x' })).status);
   expect(paired).toBe(201);
 });
+
+// The picker takes several files at once; every path is typed, in order.
+test('attaching several files types every path', async ({ page, host }) => {
+  await pair(page, host);
+  await page.locator('#attach-input').setInputFiles([
+    { name: 'um.png', mimeType: 'image/png', buffer: PNG },
+    { name: 'dois.txt', mimeType: 'text/plain', buffer: Buffer.from('segundo') },
+  ]);
+  const window = host.windows()[0].id;
+  await expect.poll(() => host.capture(window)).toMatch(/\/uploads\/\S+um\.png \S+\/uploads\/\S+dois\.txt/);
+});
+
+// Dropping files from the desktop onto the page attaches them like the picker.
+test('dropping files on the page attaches them', async ({ page, host }) => {
+  await pair(page, host);
+  const drop = await page.evaluateHandle(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(['conteudo-solto'], 'solto.txt', { type: 'text/plain' }));
+    dt.items.add(new File(['outro'], 'outro.log', { type: 'text/plain' }));
+    return dt;
+  });
+  const target = page.locator('#terminal');
+  await target.dispatchEvent('dragenter', { dataTransfer: drop });
+  await target.dispatchEvent('dragover', { dataTransfer: drop });
+  await expect(page.locator('body')).toHaveClass(/dropping/); // the page shows where to drop
+  await target.dispatchEvent('drop', { dataTransfer: drop });
+  await expect(page.locator('body')).not.toHaveClass(/dropping/);
+
+  const window = host.windows()[0].id;
+  await expect.poll(() => host.capture(window)).toMatch(/\/uploads\/\S+solto\.txt \S+\/uploads\/\S+outro\.log/);
+  const path = host.capture(window).match(/(\S+\/uploads\/\S+solto\.txt)/)[1];
+  expect(readFileSync(path, 'utf8')).toBe('conteudo-solto');
+});
+
+// Dragging text (not files) inside the page is not an upload.
+test('dropping plain text does not upload anything', async ({ page, host }) => {
+  await pair(page, host);
+  const drop = await page.evaluateHandle(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'so texto'); return dt; });
+  await page.locator('#terminal').dispatchEvent('dragover', { dataTransfer: drop });
+  await expect(page.locator('body')).not.toHaveClass(/dropping/);
+  await page.locator('#terminal').dispatchEvent('drop', { dataTransfer: drop });
+  await page.waitForTimeout(300);
+  let files = [];
+  try { files = readdirSync(join(host.dir, 'state', 'uploads')); } catch {}
+  expect(files).toEqual([]);
+});

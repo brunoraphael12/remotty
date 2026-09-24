@@ -150,3 +150,7 @@ kbd {
   #keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .25rem; overflow: visible; }
   #keys button { min-width: 0; min-height: 2.5rem; padding: .4rem 0; }
 }
+
+/* Files dragged over the page: say where they go. */
+body.dropping #stage { outline: 2px dashed var(--accent); outline-offset: -4px; }
+body.dropping #stage::after { content: "Drop to attach"; position: absolute; inset: auto 0 1rem; text-align: center; color: var(--accent); pointer-events: none; }

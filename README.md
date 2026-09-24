@@ -71,7 +71,8 @@ remotty revoke ID   # unpair; its open terminals close within a second
 - Double-tap a tab to rename it; `×` closes it.
 - 📎 attaches a photo or file: it is saved on the host (`~/.local/state/remotty/uploads`,
   private to you) and its path is typed at the prompt, so you can say
-  `look at <path>` to the agent. Up to 50 MB; nothing leaves the host.
+  `look at <path>` to the agent. Up to 50 MB; nothing leaves the host. Pick
+  several at once, or drop files from the desktop anywhere on the page.
 - 🎤 records a voice note: tap to start (the button pulses), tap again to stop.
   It is uploaded like an attachment and its path is typed at the prompt; what
   reads the audio is up to whatever runs in the terminal.
